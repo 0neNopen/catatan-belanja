@@ -1,0 +1,30 @@
+# Node & Build
+node_modules/
+dist/
+*.log
+
+# Environment Variables (CRITICAL - contains secrets!)
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# Supabase
+supabase/.temp
+supabase/.temp_plan
+
+# import
+import/.env.import
+import/import-report.txt
