@@ -134,7 +134,6 @@ src/                  Kode aplikasi React
 import/               Script dan panduan import CSV
 index.html            Halaman HTML utama
 vite.config.js        Konfigurasi Vite
-supabase-price-migration.sql  Migrasi kolom harga
 ```
 
 ## Catatan Keamanan
