@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e463b"/>
+      <stop offset="100%" stop-color="#0f2923"/>
+    </linearGradient>
+    <linearGradient id="lime" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e4f775"/>
+      <stop offset="100%" stop-color="#bada31"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  
+  <!-- Bag Handle -->
+  <path d="M196 175 V130 C196 95, 222 72, 256 72 C290 72, 316 95, 316 130 V175" fill="none" stroke="url(#lime)" stroke-width="32" stroke-linecap="round"/>
+  
+  <!-- Shopping Bag Body -->
+  <path d="M125 185 C125 165, 142 150, 162 150 H350 C370 150, 387 165, 387 185 L404 380 C406 405, 386 426, 361 426 H151 C126 426, 106 405, 108 380 Z" fill="#225447"/>
+  
+  <!-- Front Checklist Sheet -->
+  <rect x="176" y="210" width="160" height="175" rx="18" fill="#fbfcf8"/>
+  
+  <!-- Checklist Item Rows -->
+  <rect x="236" y="248" width="76" height="14" rx="7" fill="#93a59a"/>
+  <rect x="236" y="292" width="76" height="14" rx="7" fill="#93a59a"/>
+  <rect x="236" y="336" width="56" height="14" rx="7" fill="#93a59a"/>
+  
+  <!-- Vibrant Checkmarks -->
+  <path d="M198 252 L210 264 L226 242" fill="none" stroke="#176148" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M198 296 L210 308 L226 286" fill="none" stroke="#176148" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M198 340 L210 352 L226 330" fill="none" stroke="#176148" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

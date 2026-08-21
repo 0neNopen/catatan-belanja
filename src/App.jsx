@@ -287,7 +287,7 @@ function App() {
   if (!session) return <Auth />
 
   return <div className={`app-shell ${printHistoryId ? 'is-printing-history' : ''}`}>
-    <header className="topbar"><div className="brand"><span className="brand-mark">CB</span><span>Catatan<br /><b>Belanja</b></span></div><div className="sync"><span className="sync-dot" /> Tersinkron cloud <span className="sync-note">· {session.user.email}</span></div><button className="icon-button" aria-label="Keluar" onClick={() => supabase.auth.signOut()}>Keluar</button></header>
+    <header className="topbar"><div className="brand"><img src="/favicon.svg" alt="Logo" className="brand-mark" /><span>Catatan<br /><b>Belanja</b></span></div><div className="sync"><span className="sync-dot" /> Tersinkron cloud <span className="sync-note">· {session.user.email}</span></div><button className="icon-button" aria-label="Keluar" onClick={() => supabase.auth.signOut()}>Keluar</button></header>
     {printHistoryId && (
       <div className="history-print-view">
         {(() => {
@@ -423,7 +423,7 @@ function App() {
 }
 
 function SettingBlock({ title, items, onAdd, onDelete }) { return <div className="setting-block"><div className="block-head"><strong>{title}</strong><button onClick={onAdd}>+ Tambah</button></div>{items.map((item) => <div className="setting-row" key={item.id}><span>{title === 'Satuan' ? '/' : ''}{item.name}</span><button onClick={() => onDelete(item)}>Hapus</button></div>)}</div> }
-function Notice({ title, children }) { return <div className="auth-screen"><div className="auth-card"><span className="brand-mark">CB</span><h1>{title}</h1><p>{children}</p></div></div> }
+function Notice({ title, children }) { return <div className="auth-screen"><div className="auth-card"><img src="/favicon.svg" alt="Logo" className="brand-mark" /><h1>{title}</h1><p>{children}</p></div></div> }
 function Auth() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
@@ -450,7 +450,7 @@ function Auth() {
     setSent(true)
   }
   const seconds = Math.ceil(cooldown / 1000)
-  return <div className="auth-screen"><form className="auth-card" onSubmit={submit}><span className="brand-mark">CB</span><p className="eyebrow">CATATAN STOK WARUNG</p><h1>Masuk untuk<br /><em>mulai.</em></h1><p>{sent ? 'Tautan masuk sudah dikirim. Cek email sebelum meminta tautan baru.' : 'Gunakan email untuk menyinkronkan daftar di HP dan laptop.'}</p>{!sent && <><label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" /></label><button className="primary modal-submit" disabled={cooldown > 0}>{cooldown > 0 ? `Coba lagi dalam ${seconds} detik` : 'Kirim tautan masuk'}</button></>}{sent && <button type="button" className="primary modal-submit" onClick={() => setSent(false)} disabled={cooldown > 0}>{cooldown > 0 ? `Kirim ulang dalam ${seconds} detik` : 'Kirim ulang tautan'}</button>}{error && <div className="error">{error}</div>}</form></div>
+  return <div className="auth-screen"><form className="auth-card" onSubmit={submit}><img src="/favicon.svg" alt="Logo" className="brand-mark" /><p className="eyebrow">CATATAN STOK WARUNG</p><h1>Masuk untuk<br /><em>mulai.</em></h1><p>{sent ? 'Tautan masuk sudah dikirim. Cek email sebelum meminta tautan baru.' : 'Gunakan email untuk menyinkronkan daftar di HP dan laptop.'}</p>{!sent && <><label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" /></label><button className="primary modal-submit" disabled={cooldown > 0}>{cooldown > 0 ? `Coba lagi dalam ${seconds} detik` : 'Kirim tautan masuk'}</button></>}{sent && <button type="button" className="primary modal-submit" onClick={() => setSent(false)} disabled={cooldown > 0}>{cooldown > 0 ? `Kirim ulang dalam ${seconds} detik` : 'Kirim ulang tautan'}</button>}{error && <div className="error">{error}</div>}</form></div>
 }
 
 export default App

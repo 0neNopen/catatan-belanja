@@ -51,14 +51,19 @@ body {
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
-  background: var(--ink);
-  color: var(--lime);
-  width: 35px;
-  height: 35px;
+  width: 36px;
+  height: 36px;
   border-radius: 9px;
-  font: 500 11px 'DM Mono';
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+}
+
+.auth-card .brand-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+  margin-bottom: 8px;
 }
 
 .brand b {
