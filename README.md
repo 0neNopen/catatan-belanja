@@ -35,46 +35,54 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 - **Format Struk Catatan Belanja**:
   ```text
           CATATAN BELANJA
-       Waktu: 21 Agu 2026, 17.21
+       Waktu: 21 Agu 2026, 09.30
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  - 1  obat nyamuk
-       /dus                Rp7.000
-  - 4  royco
-       /rtg               Rp22.000
-  - 1  cup plastik uk.16
-       /plastik           Rp13.000
-  - 1  Minyak test
-       /dus               Rp18.000
-  - 5  arden
-       /dus               Rp60.000
-  - 1  Mie enak test
-       /dus              Rp110.000
+  - 2  Beras Ramos 5kg
+       /karung           Rp140.000
+  - 3  Minyak Bimoli 2L
+       /pouch             Rp99.000
+  - 1  Telur Ayam 1kg
+       /kg                Rp28.000
+  - 5  Gula Pasir 1kg
+       /kg                Rp75.000
+  - 2  Kopi Kapal Api
+       /renceng           Rp30.000
+  - 1  Indomie Goreng
+       /dus              Rp118.000
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  Total Barang: 13 item
-  Total: Rp230.000
+  Total Barang: 14 item
+  Total: Rp490.000
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ```
 - **Format Struk Riwayat Pembelian (Dikelompokkan per Kategori)**:
   ```text
          RIWAYAT PEMBELIAN
-       Waktu: 21 Agu 2026, 17.22
+       Waktu: 21 Agu 2026, 11.45
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   ===> SEMBAKO
-  - 1  obat nyamuk
-       /dus                Rp7.000
-  - 4  royco
-       /rtg               Rp22.000
+  - 2  Beras Ramos 5kg
+       /karung           Rp140.000
+  - 3  Minyak Bimoli 2L
+       /pouch             Rp99.000
+  - 5  Gula Pasir 1kg
+       /kg                Rp75.000
 
-  ===> SNACK
-  - 5  arden
-       /dus               Rp60.000
-  - 1  Mie enak test
-       /dus              Rp110.000
+  ===> MAKANAN & MINUMAN
+  - 1  Indomie Goreng
+       /dus              Rp118.000
+  - 2  Kopi Kapal Api
+       /renceng           Rp30.000
+
+  ===> KEBUTUHAN RUMAH
+  - 4  Sabun Mandi
+       /pcs               Rp16.000
+  - 2  Deterjen Bubuk
+       /bungkus           Rp34.000
 
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  Total Barang: 11 item
-  Total: Rp199.000
+  Total Barang: 19 item
+  Total: Rp512.000
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ```
 
