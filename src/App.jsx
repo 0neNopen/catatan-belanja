@@ -19,6 +19,27 @@ function App() {
   const [printHistoryId, setPrintHistoryId] = useState(null)
   const [pendingPrint, setPendingPrint] = useState(null)
   const [toast, setToast] = useState('')
+  const [quantities, setQuantities] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('cb_item_quantities') || '{}')
+    } catch {
+      return {}
+    }
+  })
+
+  function getQty(id) {
+    return quantities[id] || 1
+  }
+
+  function changeQty(id, delta) {
+    setQuantities((prev) => {
+      const current = prev[id] || 1
+      const nextVal = Math.max(1, current + delta)
+      const updated = { ...prev, [id]: nextVal }
+      try { localStorage.setItem('cb_item_quantities', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+  }
 
   useEffect(() => {
     if (!supabase) return setLoading(false)
@@ -81,13 +102,31 @@ function App() {
   async function markBought() {
     if (!selected.length) return
     await run(async () => {
-      const history = await supabase.from('purchase_history').insert({ user_id: session.user.id, items: selected.map((item) => ({ name: item.name, price: Number(item.price) || 0, category: item.categories?.name || 'Tanpa kategori', unit: item.units?.name || '-' })) })
+      const history = await supabase.from('purchase_history').insert({
+        user_id: session.user.id,
+        items: selected.map((item) => ({
+          name: item.name,
+          price: Number(item.price) || 0,
+          quantity: getQty(item.id),
+          category: item.categories?.name || 'Tanpa kategori',
+          unit: item.units?.name || '-'
+        }))
+      })
       if (history.error) return history
+      setQuantities((prev) => {
+        const updated = { ...prev }
+        selected.forEach((item) => delete updated[item.id])
+        try { localStorage.setItem('cb_item_quantities', JSON.stringify(updated)) } catch {}
+        return updated
+      })
       return supabase.from('items').update({ is_selected: false }).eq('user_id', session.user.id).eq('is_selected', true)
     })
   }
   async function toggleItem(item) {
     const next = !item.is_selected
+    if (next && !quantities[item.id]) {
+      changeQty(item.id, 0)
+    }
     setData((current) => ({ ...current, items: current.items.map((old) => old.id === item.id ? { ...old, is_selected: next } : old) }))
     const { error: result } = await supabase.from('items').update({ is_selected: next }).eq('id', item.id)
     if (result) {
@@ -110,10 +149,14 @@ function App() {
       return;
     }
 
+    const now = new Date();
+    const printTimeStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
     let text = "\x1B\x40"; // Init printer
     text += "\x1B\x61\x01"; // Align center
     text += type === 'history' ? "RIWAYAT PEMBELIAN\n" : "CATATAN BELANJA\n";
-    text += "================================\n";
+    text += `Waktu: ${printTimeStr}\n`;
+    text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
     text += "\x1B\x61\x00"; // Align left
 
     let total = 0;
@@ -125,26 +168,42 @@ function App() {
       return;
     }
 
-    itemsToPrint.forEach(item => {
-      text += `${item.name}\n`;
-      const cat = type === 'active' ? (item.categories?.name || '') : (item.category || '');
-      const unit = type === 'active' ? (item.units?.name || '') : (item.unit || '');
-      const price = Number(item.price) || 0;
+    if (type === 'active') {
+      itemsToPrint.forEach(item => {
+        const qty = getQty(item.id);
+        const unit = item.units?.name ? `/${item.units.name}` : (item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : '-');
+        const unitPrice = Number(item.price) || 0;
+        const subtotal = unitPrice * qty;
+        const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
+        text += `- ${qty}  ${item.name}  ${unit}  ${priceStr}\n`;
+        total += subtotal;
+      });
+    } else {
+      const grouped = itemsToPrint.reduce((acc, item) => {
+        const cat = item.category || 'Tanpa kategori';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(item);
+        return acc;
+      }, {});
 
-      text += `${cat} / ${unit}`;
-      if (price) {
-        text += ` - Rp${price.toLocaleString('id-ID')}\n`;
-        total += price;
-      } else {
-        text += "\n";
-      }
-    });
-
-    text += "--------------------------------\n";
-    if (total > 0) text += `Total: Rp${total.toLocaleString('id-ID')}\n`;
-    if (type === 'history' && entry) {
-      text += `Tgl: ${new Date(entry.purchased_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}\n`;
+      Object.entries(grouped).forEach(([catName, groupItems], groupIndex) => {
+        if (groupIndex > 0) text += "\n";
+        text += `===> ${catName.toUpperCase()}\n`;
+        groupItems.forEach(item => {
+          const qty = item.quantity || 1;
+          const unit = item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : (item.units?.name ? `/${item.units.name}` : '-');
+          const unitPrice = Number(item.price) || 0;
+          const subtotal = unitPrice * qty;
+          const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
+          text += `- ${qty}  ${item.name}  ${unit}  ${priceStr}\n`;
+          total += subtotal;
+        });
+      });
     }
+
+    text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+    text += `Total: Rp${total.toLocaleString('id-ID')}\n`;
+    text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
     text += "\n\n\n";
 
     try {
@@ -240,23 +299,36 @@ function App() {
             acc[cat].push(item);
             return acc;
           }, {});
-          const historyTotal = entry.items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+          const historyTotal = entry.items.reduce((sum, item) => sum + ((Number(item.price) || 0) * (item.quantity || 1)), 0);
+          const now = new Date();
+          const printTime = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
           return <>
-            <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '4px' }}>RIWAYAT PEMBELIAN</div>
-            <div style={{ marginBottom: '16px' }}>{new Date(entry.purchased_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            <div className="print-header-center">
+              <div className="print-title">RIWAYAT PEMBELIAN</div>
+              <div className="print-time">Waktu: {printTime}</div>
+              <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+            </div>
             {Object.entries(grouped).map(([category, items]) => (
               <div key={category} className="print-category-group">
-                <div>==========</div>
-                <div>{category}</div>
-                <div>==========</div>
-                {items.map((item, idx) => (
-                  <div key={idx}>- {item.name} - {item.unit} - {item.price ? `Rp${Number(item.price).toLocaleString('id-ID')}` : 'Rp0'}</div>
-                ))}
-                <br />
+                <div className="print-category-title">{"===>"} {category.toUpperCase()}</div>
+                <div className="print-items-list">
+                  {items.map((item, idx) => {
+                    const qty = item.quantity || 1;
+                    const unit = item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : '-';
+                    const subtotal = (Number(item.price) || 0) * qty;
+                    const price = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
+                    return (
+                      <div key={idx} className="print-item-line">
+                        - {qty} &nbsp;{item.name} &nbsp;{unit} &nbsp;{price}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
-            <div>================================</div>
-            <div style={{ fontWeight: 'bold', marginTop: '4px' }}>Total: Rp{historyTotal.toLocaleString('id-ID')}</div>
+            <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+            <div className="print-total">Total: Rp{historyTotal.toLocaleString('id-ID')}</div>
+            <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
           </>
         })()}
       </div>
@@ -264,9 +336,84 @@ function App() {
     <main>
       <section className="intro"><div><p className="eyebrow">CATATAN STOK WARUNG</p><h1>Belanja tanpa<br /><em>lupa.</em></h1><p className="lede">Pilih yang perlu dibawa, cetak daftar, lalu lanjutkan jualan.</p></div><div className="date-stamp"><span>DAFTAR AKTIF</span><strong>{selected.length}</strong><small>barang dipilih</small></div></section>
       {error && <div className="error" role="alert">{error}</div>}
-      <nav className="tabs" aria-label="Navigasi utama"><button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>Daftar barang <span>{data.items.length}</span></button><button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>Riwayat <span>{data.history.length}</span></button><button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}>Kategori & Satuan</button></nav>
-      {view === 'list' && <><section className="toolbar"><label className="search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari barang..." /></label><button className="primary" disabled={!data.categories.length || !data.units.length} onClick={() => { setDraft({ name: '', categoryId: data.categories[0]?.id || '', unitId: data.units[0]?.id || '' }); setModal('item') }}>+ Tambah barang</button></section><div className="category-row">{categories.map((item) => <button key={item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div><section className="list-head"><span>{visibleItems.length} barang</span><button onClick={() => printReceipt('active')}>Cetak terpilih <span className="print-icon">↗</span></button></section><section className="items" aria-label="Daftar barang">{visibleItems.length ? visibleItems.map((item) => <article className={`item ${item.is_selected ? 'is-checked' : ''}`} key={item.id}><button className="check" onClick={() => toggleItem(item)} aria-label={`Pilih ${item.name}`}>{item.is_selected ? '✓' : ''}</button><div className="item-info"><strong>{item.name}<span className="print-only"> - /{item.units?.name}{item.price ? ` - Rp${Number(item.price).toLocaleString('id-ID')}` : ''}</span></strong><span>{item.categories?.name} <span className="screen-only"><i>·</i> /{item.units?.name}{item.price ? ` · Rp${Number(item.price).toLocaleString('id-ID')}` : ''}</span></span></div><button className="edit" onClick={() => { setDraft({ ...item, categoryId: item.category_id, unitId: item.unit_id }); setModal('item') }}>Edit</button><button className="delete" onClick={() => run(() => supabase.from('items').delete().eq('id', item.id))} aria-label={`Hapus ${item.name}`}>×</button></article>) : <div className="empty"><strong>Belum ada barang.</strong><span>Tambah barang untuk mulai membuat daftar belanja.</span></div>}</section><section className="buy-banner"><div><span className="eyebrow">SELESAI BELANJA?</span><strong>Tandai daftar ini sudah dibeli.</strong></div><button onClick={markBought} disabled={!selected.length}>Masukkan ke riwayat →</button></section></>}
-      {view === 'history' && <section className="history"><div className="section-title"><div><p className="eyebrow">ARSIP BELANJA</p><h2>Riwayat pembelian</h2></div><span>{filteredHistory.length} daftar</span></div><div className="history-filters"><button className={historyFilter === 'all' ? 'selected' : ''} onClick={() => setHistoryFilter('all')}>Semua</button><button className={historyFilter === 'today' ? 'selected' : ''} onClick={() => setHistoryFilter('today')}>Hari ini</button><button className={historyFilter === '7d' ? 'selected' : ''} onClick={() => setHistoryFilter('7d')}>7 hari</button><button className={historyFilter === 'month' ? 'selected' : ''} onClick={() => setHistoryFilter('month')}>Bulan ini</button></div>{filteredHistory.length ? filteredHistory.map((entry) => { const entryTotal = entry.items.reduce((sum, item) => sum + (Number(item.price) || 0), 0); return <article className="history-card" key={entry.id}><div className="history-card-head"><button className="history-toggle" onClick={() => setExpandedHistory(expandedHistory === entry.id ? null : entry.id)}><strong>{new Date(entry.purchased_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</strong><span>{entry.items.length} barang dibeli · Total Rp{entryTotal.toLocaleString('id-ID')} · {expandedHistory === entry.id ? 'Tutup' : 'Lihat detail'}</span></button><div className="history-actions"><button className="history-print-btn" onClick={() => printReceipt('history', entry)}>Cetak</button><button className="history-delete" onClick={() => window.confirm('Hapus riwayat pembelian ini?') && run(() => supabase.from('purchase_history').delete().eq('id', entry.id))}>Hapus</button></div></div>{expandedHistory === entry.id && <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Barang</th><th>Kategori</th><th>Satuan</th><th>Harga</th></tr></thead><tbody>{entry.items.map((item, index) => <tr key={`${entry.id}-${index}`}><td>{item.name}</td><td>{item.category || '-'}</td><td>/{item.unit || '-'}</td><td>{item.price ? `Rp${Number(item.price).toLocaleString('id-ID')}` : '—'}</td></tr>)}</tbody><tfoot><tr><td colSpan="3" style={{ fontWeight: 700, textAlign: 'right', paddingRight: '12px' }}>Total</td><td style={{ fontWeight: 700 }}>Rp{entryTotal.toLocaleString('id-ID')}</td></tr></tfoot></table></div>}</article> }) : <div className="empty"><strong>Belum ada riwayat pada waktu ini.</strong><span>Ubah filter atau tandai daftar sebagai sudah dibeli.</span></div>}</section>}
+      <nav className="tabs" aria-label="Navigasi utama"><button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>Daftar barang <span>{data.items.length}</span></button><button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>Riwayat <span>{data.history.length}</span></button><button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}>Pengaturan</button></nav>
+      {view === 'list' && <>
+        <div className="print-active-header print-only">
+          <div className="print-title">CATATAN BELANJA</div>
+          <div className="print-time">Waktu: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}, {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+        </div>
+        <section className="toolbar"><label className="search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari barang..." /></label><button className="primary" disabled={!data.categories.length || !data.units.length} onClick={() => { setDraft({ name: '', categoryId: data.categories[0]?.id || '', unitId: data.units[0]?.id || '' }); setModal('item') }}>+ Tambah barang</button></section>
+        <div className="category-row">{categories.map((item) => <button key={item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
+        <section className="list-head"><span>{visibleItems.length} barang</span><button onClick={() => printReceipt('active')}>Cetak terpilih <span className="print-icon">↗</span></button></section>
+        <section className="items" aria-label="Daftar barang">
+          {visibleItems.length ? visibleItems.map((item) => {
+            const qty = getQty(item.id);
+            const unitPrice = Number(item.price) || 0;
+            const subtotal = unitPrice * qty;
+            return (
+              <article className={`item ${item.is_selected ? 'is-checked' : ''}`} key={item.id}>
+                <button className="check" onClick={() => toggleItem(item)} aria-label={`Pilih ${item.name}`}>{item.is_selected ? '✓' : ''}</button>
+                <div className="item-info">
+                  <div className="screen-only">
+                    <strong className="item-name">{item.name}</strong>
+                    <div className="item-meta">
+                      <span className="item-cat">{item.categories?.name}</span>
+                      <span className="item-sep">·</span>
+                      <span className="item-unit">/{item.units?.name}</span>
+                      {unitPrice > 0 && (
+                        <>
+                          <span className="item-sep">·</span>
+                          <span className="item-price">
+                            Rp{unitPrice.toLocaleString('id-ID')}
+                            {item.is_selected && qty > 1 && (
+                              <span className="item-subtotal"> (Total: Rp{subtotal.toLocaleString('id-ID')})</span>
+                            )}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="print-only print-item-line">
+                    - {qty} &nbsp;{item.name} &nbsp;/{item.units?.name || '-'} &nbsp;{subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'}
+                  </div>
+                </div>
+                <div className="item-actions">
+                  {item.is_selected ? (
+                    <div className="qty-control" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="qty-btn"
+                        onClick={() => changeQty(item.id, -1)}
+                        aria-label={`Kurangi ${item.name}`}
+                      >−</button>
+                      <span className="qty-value">{qty}</span>
+                      <button
+                        type="button"
+                        className="qty-btn"
+                        onClick={() => changeQty(item.id, 1)}
+                        aria-label={`Tambah ${item.name}`}
+                      >+</button>
+                    </div>
+                  ) : (
+                    <>
+                      <button className="edit" onClick={() => { setDraft({ ...item, categoryId: item.category_id, unitId: item.unit_id }); setModal('item') }}>Edit</button>
+                      <button className="delete" onClick={() => window.confirm(`Hapus barang "${item.name}"?`) && run(() => supabase.from('items').delete().eq('id', item.id))} aria-label={`Hapus ${item.name}`}>Hapus</button>
+                    </>
+                  )}
+                </div>
+              </article>
+            );
+          }) : <div className="empty"><strong>Belum ada barang.</strong><span>Tambah barang untuk mulai membuat daftar belanja.</span></div>}
+        </section>
+        <div className="print-active-footer print-only">
+          <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+          <div className="print-total">Total: Rp{selected.reduce((sum, item) => sum + ((Number(item.price) || 0) * getQty(item.id)), 0).toLocaleString('id-ID')}</div>
+          <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+        </div>
+        <section className="buy-banner"><div><span className="eyebrow">SELESAI BELANJA?</span><strong>Tandai daftar ini sudah dibeli.</strong></div><button onClick={markBought} disabled={!selected.length}>Masukkan ke riwayat →</button></section>
+      </>}
+      {view === 'history' && <section className="history"><div className="section-title"><div><p className="eyebrow">ARSIP BELANJA</p><h2>Riwayat pembelian</h2></div><span>{filteredHistory.length} daftar</span></div><div className="history-filters"><button className={historyFilter === 'all' ? 'selected' : ''} onClick={() => setHistoryFilter('all')}>Semua</button><button className={historyFilter === 'today' ? 'selected' : ''} onClick={() => setHistoryFilter('today')}>Hari ini</button><button className={historyFilter === '7d' ? 'selected' : ''} onClick={() => setHistoryFilter('7d')}>7 hari</button><button className={historyFilter === 'month' ? 'selected' : ''} onClick={() => setHistoryFilter('month')}>Bulan ini</button></div>{filteredHistory.length ? filteredHistory.map((entry) => { const entryTotal = entry.items.reduce((sum, item) => sum + ((Number(item.price) || 0) * (item.quantity || 1)), 0); return <article className="history-card" key={entry.id}><div className="history-card-head"><button className="history-toggle" onClick={() => setExpandedHistory(expandedHistory === entry.id ? null : entry.id)}><strong>{new Date(entry.purchased_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</strong><span>{entry.items.length} barang dibeli · Total Rp{entryTotal.toLocaleString('id-ID')} · {expandedHistory === entry.id ? 'Tutup' : 'Lihat detail'}</span></button><div className="history-actions"><button className="history-print-btn" onClick={() => printReceipt('history', entry)}>Cetak</button><button className="history-delete" onClick={() => window.confirm('Hapus riwayat pembelian ini?') && run(() => supabase.from('purchase_history').delete().eq('id', entry.id))}>Hapus</button></div></div>{expandedHistory === entry.id && <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Barang</th><th>Kategori</th><th>Satuan</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead><tbody>{entry.items.map((item, index) => { const q = item.quantity || 1; const p = Number(item.price) || 0; return <tr key={`${entry.id}-${index}`}><td>{item.name}</td><td>{item.category || '-'}</td><td>/{item.unit || '-'}</td><td>{q}</td><td>{p ? `Rp${p.toLocaleString('id-ID')}` : '—'}</td><td>{p ? `Rp${(p * q).toLocaleString('id-ID')}` : '—'}</td></tr> })}</tbody><tfoot><tr><td colSpan="5" style={{ fontWeight: 700, textAlign: 'right', paddingRight: '12px' }}>Total</td><td style={{ fontWeight: 700 }}>Rp{entryTotal.toLocaleString('id-ID')}</td></tr></tfoot></table></div>}</article> }) : <div className="empty"><strong>Belum ada riwayat pada waktu ini.</strong><span>Ubah filter atau tandai daftar sebagai sudah dibeli.</span></div>}</section>}
       {view === 'settings' && <section className="settings"><div className="section-title"><div><p className="eyebrow">ATUR SESUAI WARUNG</p><h2>Kategori & Satuan</h2></div></div><div className="setting-grid"><SettingBlock title="Kategori" items={data.categories} onAdd={() => addNamed('categories', 'kategori')} onDelete={(item) => { if (data.items.some((i) => i.category_id === item.id)) return window.alert('Kategori masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('categories').delete().eq('id', item.id)) }} /><SettingBlock title="Satuan" items={data.units} onAdd={() => addNamed('units', 'satuan')} onDelete={(item) => { if (data.items.some((i) => i.unit_id === item.id)) return window.alert('Satuan masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('units').delete().eq('id', item.id)) }} /></div></section>}    </main>
     {toast && <div className="toast" role="status">{toast}</div>}
     {modal === 'item' && <div className="modal-backdrop" onMouseDown={() => setModal(null)}><form className="modal" onSubmit={saveItem} onMouseDown={(e) => e.stopPropagation()}><div className="modal-head"><h2>{draft.id ? 'Edit barang' : 'Tambah barang'}</h2><button type="button" onClick={() => setModal(null)}>×</button></div><label>Nama barang<input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Contoh: Beras premium" /></label><label>Harga<input type="number" min="0" step="1" value={draft.price || ''} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="Contoh: 15000" /></label><label>Kategori<select value={draft.categoryId} onChange={(e) => setDraft({ ...draft, categoryId: e.target.value })}>{data.categories.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>Satuan<select value={draft.unitId} onChange={(e) => setDraft({ ...draft, unitId: e.target.value })}>{data.units.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><button className="primary modal-submit">Simpan barang</button></form></div>}
