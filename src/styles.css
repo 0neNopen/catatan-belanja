@@ -532,39 +532,191 @@ button {
   color: #942b21;
 }
 
-.buy-banner {
-  margin-top: 28px;
-  padding: 21px 24px;
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 12px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: #f6f8f4;
+  transform: translateY(-1px);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #fafbfa;
+}
+
+.page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.page-num {
+  min-width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: white;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0 6px;
+}
+
+.page-num:hover:not(.active) {
+  border-color: var(--ink);
+  background: #f6f8f4;
+  transform: translateY(-1px);
+}
+
+.page-num.active {
   background: var(--ink);
+  color: var(--lime);
+  border-color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 3px 10px rgba(23, 51, 44, 0.25);
+}
+
+.page-dots {
+  padding: 0 4px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+}
+
+/* Buy Banner (Selesai Belanja) */
+.buy-banner {
+  margin-top: 24px;
+  padding: 22px 26px;
+  background: linear-gradient(135deg, #193930 0%, #102520 100%);
+  border: 1px solid rgba(217, 237, 116, 0.2);
   color: white;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-radius: 10px;
+  border-radius: 12px;
+  gap: 20px;
+  box-shadow: 0 8px 24px rgba(17, 42, 36, 0.15);
 }
 
-.buy-banner .eyebrow {
-  color: #9bb0a4;
-  margin-bottom: 6px;
+.buy-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.buy-banner strong {
-  font-size: 13px;
+.buy-banner-eyebrow {
+  font: 700 11px 'DM Mono', monospace;
+  color: var(--lime);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.buy-banner button {
+.buy-banner-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.buy-banner-title strong {
+  color: var(--lime);
+  font-size: 16px;
+}
+
+.buy-banner-desc {
+  font-size: 12.5px;
+  color: #a9bcad;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.buy-banner-btn {
   background: var(--lime);
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--ink);
   font-weight: 700;
-  padding: 12px 15px;
-  font-size: 11px;
+  padding: 12px 20px;
+  font-size: 13px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 4px 14px rgba(217, 237, 116, 0.28);
 }
 
-.buy-banner button:disabled {
-  opacity: .4;
+.buy-banner-btn:hover:not(:disabled) {
+  background: #e4f77c;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(217, 237, 116, 0.4);
+}
+
+.buy-banner-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.buy-banner-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.buy-badge {
+  background: var(--ink);
+  color: var(--lime);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  padding: 2px 8px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.buy-arrow {
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+
+.buy-banner-btn:hover:not(:disabled) .buy-arrow {
+  transform: translateX(3px);
 }
 
 .empty {
@@ -941,12 +1093,23 @@ button {
     padding: 5px 9px;
   }
   .buy-banner {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
-    gap: 17px;
+    gap: 16px;
+    padding: 18px 20px;
   }
-  .buy-banner button {
+  .buy-banner-btn {
     width: 100%;
+    justify-content: center;
+  }
+  .page-num {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  .page-btn {
+    padding: 7px 10px;
+    font-size: 12px;
   }
   .setting-grid {
     grid-template-columns: 1fr;
@@ -1004,12 +1167,53 @@ button {
     display: block !important;
   }
 
-  .print-item-line {
+  .print-item-block {
+    display: block !important;
+    margin-bottom: 6px;
     font-family: 'DM Mono', monospace, 'Courier New', Courier;
     font-size: 13px;
-    line-height: 1.4;
-    white-space: pre-wrap;
+    line-height: 1.35;
     color: black !important;
+  }
+
+  .print-item-row-1 {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-weight: 500;
+  }
+
+  .print-item-bullet {
+    width: 8px;
+    flex-shrink: 0;
+  }
+
+  .print-item-qty {
+    min-width: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .print-item-name {
+    flex: 1;
+    word-break: break-word;
+  }
+
+  .print-item-row-2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-left: 28px;
+    font-size: 12px;
+  }
+
+  .print-item-unit {
+    color: #333;
+  }
+
+  .print-item-price {
+    font-weight: 700;
+    text-align: right;
   }
 
   .print-active-header,
@@ -1050,11 +1254,18 @@ button {
     margin-bottom: 4px;
   }
 
+  .print-qty-summary {
+    font-family: 'DM Mono', monospace, 'Courier New', Courier;
+    font-size: 13px;
+    margin: 4px 0 2px;
+    font-weight: 500;
+  }
+
   .print-total {
     font-family: 'DM Mono', monospace, 'Courier New', Courier;
     font-weight: bold;
     font-size: 14px;
-    margin: 4px 0;
+    margin: 2px 0 4px;
   }
 
   .print-active-footer {

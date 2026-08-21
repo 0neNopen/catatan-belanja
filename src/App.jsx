@@ -12,6 +12,8 @@ function App() {
   const [view, setView] = useState('list')
   const [category, setCategory] = useState('Semua')
   const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
   const [modal, setModal] = useState(null)
   const [draft, setDraft] = useState({ name: '', categoryId: '', unitId: '' })
   const [historyFilter, setHistoryFilter] = useState('all')
@@ -75,6 +77,20 @@ function App() {
   const categories = ['Semua', ...data.categories.map((item) => item.name)]
   const visibleItems = useMemo(() => data.items.filter((item) => (category === 'Semua' || item.categories?.name === category) && item.name.toLowerCase().includes(query.toLowerCase())), [data.items, category, query])
   const selected = data.items.filter((item) => item.is_selected)
+
+  useEffect(() => {
+    setPage(1)
+  }, [category, query])
+
+  const totalPages = Math.max(1, Math.ceil(visibleItems.length / ITEMS_PER_PAGE))
+  const paginatedItems = useMemo(() => {
+    const start = (page - 1) * ITEMS_PER_PAGE
+    return visibleItems.slice(start, start + ITEMS_PER_PAGE)
+  }, [visibleItems, page])
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [totalPages, page])
   const filteredHistory = useMemo(() => {
     const now = new Date()
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -138,6 +154,15 @@ function App() {
     window.setTimeout(() => setToast(''), 2200)
   }
 
+  function formatReceiptItem(qty, name, unit, priceStr, lineWidth = 32) {
+    const indent = "     ";
+    const unitText = unit ? (unit.startsWith('/') ? unit : `/${unit}`) : '-';
+    const line1 = `- ${qty}  ${name}\n`;
+    const spaceCount = Math.max(2, lineWidth - indent.length - unitText.length - priceStr.length);
+    const line2 = `${indent}${unitText}${" ".repeat(spaceCount)}${priceStr}\n`;
+    return line1 + line2;
+  }
+
   async function printReceipt(type, entry = null) {
     if (!navigator.bluetooth) {
       setPendingPrint({
@@ -171,11 +196,11 @@ function App() {
     if (type === 'active') {
       itemsToPrint.forEach(item => {
         const qty = getQty(item.id);
-        const unit = item.units?.name ? `/${item.units.name}` : (item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : '-');
+        const unit = item.units?.name || item.unit || '-';
         const unitPrice = Number(item.price) || 0;
         const subtotal = unitPrice * qty;
         const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
-        text += `- ${qty}  ${item.name}  ${unit}  ${priceStr}\n`;
+        text += formatReceiptItem(qty, item.name, unit, priceStr, 32);
         total += subtotal;
       });
     } else {
@@ -191,17 +216,20 @@ function App() {
         text += `===> ${catName.toUpperCase()}\n`;
         groupItems.forEach(item => {
           const qty = item.quantity || 1;
-          const unit = item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : (item.units?.name ? `/${item.units.name}` : '-');
+          const unit = item.unit || (item.units?.name ? item.units.name : '-');
           const unitPrice = Number(item.price) || 0;
           const subtotal = unitPrice * qty;
           const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
-          text += `- ${qty}  ${item.name}  ${unit}  ${priceStr}\n`;
+          text += formatReceiptItem(qty, item.name, unit, priceStr, 32);
           total += subtotal;
         });
       });
     }
 
+    const totalQty = itemsToPrint.reduce((sum, item) => sum + (type === 'active' ? getQty(item.id) : (item.quantity || 1)), 0);
+
     text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+    text += `Total Barang: ${totalQty} item\n`;
     text += `Total: Rp${total.toLocaleString('id-ID')}\n`;
     text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
     text += "\n\n\n";
@@ -318,8 +346,16 @@ function App() {
                     const subtotal = (Number(item.price) || 0) * qty;
                     const price = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
                     return (
-                      <div key={idx} className="print-item-line">
-                        - {qty} &nbsp;{item.name} &nbsp;{unit} &nbsp;{price}
+                      <div key={idx} className="print-item-block">
+                        <div className="print-item-row-1">
+                          <span className="print-item-bullet">-</span>
+                          <span className="print-item-qty">{qty}</span>
+                          <span className="print-item-name">{item.name}</span>
+                        </div>
+                        <div className="print-item-row-2">
+                          <span className="print-item-unit">{unit}</span>
+                          <span className="print-item-price">{price}</span>
+                        </div>
                       </div>
                     );
                   })}
@@ -327,6 +363,7 @@ function App() {
               </div>
             ))}
             <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+            <div className="print-qty-summary">Total Barang: {entry.items.reduce((sum, item) => sum + (item.quantity || 1), 0)} item</div>
             <div className="print-total">Total: Rp{historyTotal.toLocaleString('id-ID')}</div>
             <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
           </>
@@ -345,9 +382,16 @@ function App() {
         </div>
         <section className="toolbar"><label className="search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari barang..." /></label><button className="primary" disabled={!data.categories.length || !data.units.length} onClick={() => { setDraft({ name: '', categoryId: data.categories[0]?.id || '', unitId: data.units[0]?.id || '' }); setModal('item') }}>+ Tambah barang</button></section>
         <div className="category-row">{categories.map((item) => <button key={item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
-        <section className="list-head"><span>{visibleItems.length} barang</span><button onClick={() => printReceipt('active')}>Cetak terpilih <span className="print-icon">↗</span></button></section>
-        <section className="items" aria-label="Daftar barang">
-          {visibleItems.length ? visibleItems.map((item) => {
+        <section className="list-head">
+          <span>
+            {visibleItems.length > ITEMS_PER_PAGE
+              ? `Menampilkan ${(page - 1) * ITEMS_PER_PAGE + 1}–${Math.min(page * ITEMS_PER_PAGE, visibleItems.length)} dari ${visibleItems.length} barang`
+              : `${visibleItems.length} barang`}
+          </span>
+          <button onClick={() => printReceipt('active')}>Cetak terpilih <span className="print-icon">↗</span></button>
+        </section>
+        <section className="items screen-only" aria-label="Daftar barang">
+          {paginatedItems.length ? paginatedItems.map((item) => {
             const qty = getQty(item.id);
             const unitPrice = Number(item.price) || 0;
             const subtotal = unitPrice * qty;
@@ -355,27 +399,22 @@ function App() {
               <article className={`item ${item.is_selected ? 'is-checked' : ''}`} key={item.id}>
                 <button className="check" onClick={() => toggleItem(item)} aria-label={`Pilih ${item.name}`}>{item.is_selected ? '✓' : ''}</button>
                 <div className="item-info">
-                  <div className="screen-only">
-                    <strong className="item-name">{item.name}</strong>
-                    <div className="item-meta">
-                      <span className="item-cat">{item.categories?.name}</span>
-                      <span className="item-sep">·</span>
-                      <span className="item-unit">/{item.units?.name}</span>
-                      {unitPrice > 0 && (
-                        <>
-                          <span className="item-sep">·</span>
-                          <span className="item-price">
-                            Rp{unitPrice.toLocaleString('id-ID')}
-                            {item.is_selected && qty > 1 && (
-                              <span className="item-subtotal"> (Total: Rp{subtotal.toLocaleString('id-ID')})</span>
-                            )}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="print-only print-item-line">
-                    - {qty} &nbsp;{item.name} &nbsp;/{item.units?.name || '-'} &nbsp;{subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'}
+                  <strong className="item-name">{item.name}</strong>
+                  <div className="item-meta">
+                    <span className="item-cat">{item.categories?.name}</span>
+                    <span className="item-sep">·</span>
+                    <span className="item-unit">/{item.units?.name}</span>
+                    {unitPrice > 0 && (
+                      <>
+                        <span className="item-sep">·</span>
+                        <span className="item-price">
+                          Rp{unitPrice.toLocaleString('id-ID')}
+                          {item.is_selected && qty > 1 && (
+                            <span className="item-subtotal"> (Total: Rp{subtotal.toLocaleString('id-ID')})</span>
+                          )}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="item-actions">
@@ -406,12 +445,105 @@ function App() {
             );
           }) : <div className="empty"><strong>Belum ada barang.</strong><span>Tambah barang untuk mulai membuat daftar belanja.</span></div>}
         </section>
+
+        {totalPages > 1 && (
+          <nav className="pagination screen-only" aria-label="Navigasi halaman">
+            <button 
+              className="page-btn page-prev" 
+              onClick={() => setPage((p) => Math.max(1, p - 1))} 
+              disabled={page === 1}
+              aria-label="Halaman sebelumnya"
+            >
+              ‹ Prev
+            </button>
+            <div className="page-numbers">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                if (
+                  totalPages <= 7 ||
+                  p === 1 ||
+                  p === totalPages ||
+                  Math.abs(p - page) <= 1
+                ) {
+                  return (
+                    <button
+                      key={p}
+                      className={`page-num ${page === p ? 'active' : ''}`}
+                      onClick={() => setPage(p)}
+                      aria-label={`Halaman ${p}`}
+                      aria-current={page === p ? 'page' : undefined}
+                    >
+                      {p}
+                    </button>
+                  );
+                } else if ((p === 2 && page > 3) || (p === totalPages - 1 && page < totalPages - 2)) {
+                  return <span key={`dots-${p}`} className="page-dots">…</span>;
+                }
+                return null;
+              })}
+            </div>
+            <button 
+              className="page-btn page-next" 
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))} 
+              disabled={page === totalPages}
+              aria-label="Halaman selanjutnya"
+            >
+              Next ›
+            </button>
+          </nav>
+        )}
+
+        <div className="print-active-items print-only">
+          {selected.map((item) => {
+            const qty = getQty(item.id);
+            const unitPrice = Number(item.price) || 0;
+            const subtotal = unitPrice * qty;
+            return (
+              <div key={item.id} className="print-item-block">
+                <div className="print-item-row-1">
+                  <span className="print-item-bullet">-</span>
+                  <span className="print-item-qty">{qty}</span>
+                  <span className="print-item-name">{item.name}</span>
+                </div>
+                <div className="print-item-row-2">
+                  <span className="print-item-unit">/{item.units?.name || '-'}</span>
+                  <span className="print-item-price">{subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         <div className="print-active-footer print-only">
           <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+          <div className="print-qty-summary">Total Barang: {selected.reduce((sum, item) => sum + getQty(item.id), 0)} item</div>
           <div className="print-total">Total: Rp{selected.reduce((sum, item) => sum + ((Number(item.price) || 0) * getQty(item.id)), 0).toLocaleString('id-ID')}</div>
           <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
         </div>
-        <section className="buy-banner"><div><span className="eyebrow">SELESAI BELANJA?</span><strong>Tandai daftar ini sudah dibeli.</strong></div><button onClick={markBought} disabled={!selected.length}>Masukkan ke riwayat →</button></section>
+
+        <section className="buy-banner screen-only">
+          <div className="buy-banner-info">
+            <span className="buy-banner-eyebrow">SELESAI BELANJA?</span>
+            <h3 className="buy-banner-title">
+              {selected.length > 0 ? (
+                <>Tandai <strong>{selected.length} barang</strong> sudah dibeli</>
+              ) : (
+                'Tandai barang belanjaan sudah dibeli'
+              )}
+            </h3>
+            <p className="buy-banner-desc">
+              Barang yang dipilih akan dipindahkan ke arsip riwayat pembelian.
+            </p>
+          </div>
+          <button 
+            className="buy-banner-btn" 
+            onClick={markBought} 
+            disabled={!selected.length}
+          >
+            <span>Masukkan ke riwayat</span>
+            {selected.length > 0 && <span className="buy-badge">{selected.length}</span>}
+            <span className="buy-arrow">→</span>
+          </button>
+        </section>
       </>}
       {view === 'history' && <section className="history"><div className="section-title"><div><p className="eyebrow">ARSIP BELANJA</p><h2>Riwayat pembelian</h2></div><span>{filteredHistory.length} daftar</span></div><div className="history-filters"><button className={historyFilter === 'all' ? 'selected' : ''} onClick={() => setHistoryFilter('all')}>Semua</button><button className={historyFilter === 'today' ? 'selected' : ''} onClick={() => setHistoryFilter('today')}>Hari ini</button><button className={historyFilter === '7d' ? 'selected' : ''} onClick={() => setHistoryFilter('7d')}>7 hari</button><button className={historyFilter === 'month' ? 'selected' : ''} onClick={() => setHistoryFilter('month')}>Bulan ini</button></div>{filteredHistory.length ? filteredHistory.map((entry) => { const entryTotal = entry.items.reduce((sum, item) => sum + ((Number(item.price) || 0) * (item.quantity || 1)), 0); return <article className="history-card" key={entry.id}><div className="history-card-head"><button className="history-toggle" onClick={() => setExpandedHistory(expandedHistory === entry.id ? null : entry.id)}><strong>{new Date(entry.purchased_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</strong><span>{entry.items.length} barang dibeli · Total Rp{entryTotal.toLocaleString('id-ID')} · {expandedHistory === entry.id ? 'Tutup' : 'Lihat detail'}</span></button><div className="history-actions"><button className="history-print-btn" onClick={() => printReceipt('history', entry)}>Cetak</button><button className="history-delete" onClick={() => window.confirm('Hapus riwayat pembelian ini?') && run(() => supabase.from('purchase_history').delete().eq('id', entry.id))}>Hapus</button></div></div>{expandedHistory === entry.id && <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Barang</th><th>Kategori</th><th>Satuan</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead><tbody>{entry.items.map((item, index) => { const q = item.quantity || 1; const p = Number(item.price) || 0; return <tr key={`${entry.id}-${index}`}><td>{item.name}</td><td>{item.category || '-'}</td><td>/{item.unit || '-'}</td><td>{q}</td><td>{p ? `Rp${p.toLocaleString('id-ID')}` : '—'}</td><td>{p ? `Rp${(p * q).toLocaleString('id-ID')}` : '—'}</td></tr> })}</tbody><tfoot><tr><td colSpan="5" style={{ fontWeight: 700, textAlign: 'right', paddingRight: '12px' }}>Total</td><td style={{ fontWeight: 700 }}>Rp{entryTotal.toLocaleString('id-ID')}</td></tr></tfoot></table></div>}</article> }) : <div className="empty"><strong>Belum ada riwayat pada waktu ini.</strong><span>Ubah filter atau tandai daftar sebagai sudah dibeli.</span></div>}</section>}
       {view === 'settings' && <section className="settings"><div className="section-title"><div><p className="eyebrow">ATUR SESUAI WARUNG</p><h2>Kategori & Satuan</h2></div></div><div className="setting-grid"><SettingBlock title="Kategori" items={data.categories} onAdd={() => addNamed('categories', 'kategori')} onDelete={(item) => { if (data.items.some((i) => i.category_id === item.id)) return window.alert('Kategori masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('categories').delete().eq('id', item.id)) }} /><SettingBlock title="Satuan" items={data.units} onAdd={() => addNamed('units', 'satuan')} onDelete={(item) => { if (data.items.some((i) => i.unit_id === item.id)) return window.alert('Satuan masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('units').delete().eq('id', item.id)) }} /></div></section>}    </main>

@@ -13,54 +13,86 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 - **Atribut Lengkap**: Menyimpan nama barang, harga satuan, kategori, dan satuan unit (misal: `/kg`, `/dus`, `/pcs`, `/renceng`).
 - **Kelola Kategori & Satuan**: Tambah atau hapus kategori dan satuan yang disesuaikan dengan kebutuhan warung.
 
-### 2. Checklist Belanja & Kontrol Jumlah (Quantity Counter)
+### 2. Paginasi Cerdas (10 Barang per Halaman)
+- **Ringan & Cepat**: Menampilkan maksimal **10 barang per halaman** sehingga aplikasi tetap gesit dan lancar meski memuat ratusan data stok barang.
+- **Navigasi Pintar**: Navigasi halaman intuitif (`‹ Prev`, nomor halaman aktif, ellipsis `…`, `Next ›`) yang otomatis menyesuaikan jumlah data.
+- **Reset Otomatis**: Halaman otomatis kembali ke Halaman 1 saat pengguna melakukan pencarian atau memilih kategori tertentu.
+
+### 3. Checklist Belanja & Kontrol Jumlah (Quantity Counter)
 - **Checklist Cepat**: Pilih barang yang perlu dibeli dengan satu sentuhan.
 - **Alih Fungsi Tombol Otomatis**: Saat barang dichecklist, tombol `[Edit]` & `[Hapus]` otomatis berganti menjadi kontrol jumlah beli **`[ - ] (angka) [ + ]`**.
 - **Perhitungan Subtotal Instan**: Subtotal dihitung otomatis $(\text{Harga Satuan} \times \text{Jumlah Beli})$ dan ditampilkan langsung di layar.
 - **Penyimpanan Lokal**: Jumlah barang tersimpan di `localStorage` sehingga tidak hilang saat halaman di-refresh.
+- **Prioritas Tampilan**: Barang yang dichecklist otomatis diposisikan di urutan teratas (Halaman 1).
 
-### 3. Pencetakan Struk Thermal Mini & Browser (Dual-Mode Print)
+### 4. Pencetakan Struk Thermal Mini & Browser (Dual-Mode Print)
 - **Direct Bluetooth ESC/POS**: Terhubung langsung ke printer thermal mini Bluetooth (58mm / 80mm).
 - **System / Browser Print Fallback**: Opsi cetak melalui dialog print browser/HP jika Bluetooth tidak tersedia.
-- **Format Catatan Belanja Ringkas**: Menampilkan daftar belanja tanpa penumpukan teks kategori, dengan format:
+- **Format 2 Baris Anti-Terpotong**:
+  - **Baris 1**: `- (jumlah barang)  (nama barang)`
+  - **Baris 2**: Indentasi rapi memuat `(satuan)` di kiri dan `(harga)` **rata kanan** di ujung kertas 32 karakter sehingga nominal harga tidak akan terpotong atau patah ke baris baru.
+- **Keterangan Total Barang**: Menampilkan akumulasi seluruh *quantity* barang yang dibeli tepat di atas Total Harga.
+- **Format Struk Catatan Belanja**:
   ```text
-  CATATAN BELANJA
-  Waktu: 21 Agu 2026, 16:15
+          CATATAN BELANJA
+       Waktu: 21 Agu 2026, 17.21
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  - 2  Beras Ramos     /kg     Rp30.000
-  - 1  Minyak Goreng   /liter  Rp18.000
-  - 3  Sabun Mandi     /pcs    Rp15.000
+  - 1  obat nyamuk
+       /dus                Rp7.000
+  - 4  royco
+       /rtg               Rp22.000
+  - 1  cup plastik uk.16
+       /plastik           Rp13.000
+  - 1  Minyak test
+       /dus               Rp18.000
+  - 5  arden
+       /dus               Rp60.000
+  - 1  Mie enak test
+       /dus              Rp110.000
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  Total: Rp63.000
+  Total Barang: 13 item
+  Total: Rp230.000
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ```
-- **Format Riwayat Pembelian (Grouped by Category)**: Riwayat dicetak dengan pengelompokan rapi berdasarkan kategori masing-masing:
+- **Format Struk Riwayat Pembelian (Dikelompokkan per Kategori)**:
   ```text
-  RIWAYAT PEMBELIAN
-  Waktu: 21 Agu 2026, 16:15
+         RIWAYAT PEMBELIAN
+       Waktu: 21 Agu 2026, 17.22
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
   ===> SEMBAKO
-  - 2  Beras Ramos     /kg     Rp30.000
-  - 1  Minyak Goreng   /liter  Rp18.000
+  - 1  obat nyamuk
+       /dus                Rp7.000
+  - 4  royco
+       /rtg               Rp22.000
 
-  ===> BUMBU DAPUR
-  - 1  Bawang Merah    /kg     Rp35.000
+  ===> SNACK
+  - 5  arden
+       /dus               Rp60.000
+  - 1  Mie enak test
+       /dus              Rp110.000
+
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  Total: Rp83.000
+  Total Barang: 11 item
+  Total: Rp199.000
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ```
 
-### 4. Riwayat Pembelian (Purchase History)
+### 5. Banner "Selesai Belanja" & Riwayat Pembelian (Purchase History)
+- **Banner Interaktif**: Desain banner modern dengan kontras tinggi, menampilkan status dinamis jumlah barang yang dipilih, serta tombol yang nyaman ditekan di HP.
 - **Tandai Selesai Belanja**: Memindahkan daftar barang belanja yang dipilih ke dalam arsip riwayat pembelian dalam sekali klik.
 - **Detail Rinci**: Riwayat memuat tanggal transaksi, rincian barang, kategori, satuan, jumlah beli (qty), harga satuan, dan subtotal.
 - **Filter Waktu**: Filter riwayat berdasarkan Semua, Hari ini, 7 hari terakhir, atau Bulan ini.
 - **Cetak Ulang & Hapus Riwayat**: Kemudahan mencetak ulang struk riwayat kapan saja atau menghapus arsip yang sudah tidak diperlukan.
 
-### 5. Multi-Device & Autentikasi Cloud
+### 6. Branding & Logo Resmi
+- Dilengkapi logo vektor SVG resmi (ikon tas belanja dengan checklist centang hijau) yang terintegrasi pada Favicon browser, topbar aplikasi, serta halaman login.
+
+### 7. Multi-Device & Autentikasi Cloud
 - **Passwordless Auth**: Masuk aman menggunakan Magic Link / OTP via Email.
 - **Sinkronisasi Realtime**: Perubahan data di HP langsung tersinkron ke laptop secara realtime melalui Supabase WebSockets.
 
-### 6. Import Data Massal (CSV)
+### 8. Import Data Massal (CSV)
 - Tersedia script Node.js untuk memasukkan ratusan data barang sekaligus dari file CSV secara otomatis dan tervalidasi.
 
 ---
@@ -167,10 +199,12 @@ File bundle produksi siap pakai akan dihasilkan di folder `dist/`.
 
 ```text
 src/
-├── App.jsx              # Komponen utama aplikasi, logika belanja, print, & state
+├── App.jsx              # Komponen utama aplikasi, logika belanja, paginasi, print, & state
 ├── main.jsx             # Entry point React
-├── styles.css           # Desain antarmuka, responsivitas HP, & styling print
+├── styles.css           # Desain antarmuka, paginasi, responsivitas HP, & styling print
 └── supabase.js          # Inisialisasi Supabase client
+public/
+└── favicon.svg          # Logo resmi brand & favicon web
 import/
 ├── data-template.csv    # Template file data CSV barang
 ├── import.js            # Script import data massal
