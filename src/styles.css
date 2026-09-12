@@ -451,12 +451,24 @@ button {
   min-width: 0;
 }
 
+.item-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .item-name {
   font-size: 17px;
   font-weight: 700;
   color: var(--ink);
   line-height: 1.25;
   word-break: break-word;
+}
+
+.item-title-row .item-price {
+  font: 600 13px 'DM Mono';
+  color: #557530;
 }
 
 .item-meta {

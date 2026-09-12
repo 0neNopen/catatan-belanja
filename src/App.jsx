@@ -262,11 +262,17 @@ function App() {
   }
 
   function formatReceiptItem(qty, name, unit, priceStr, lineWidth = 32) {
-    const indent = "     ";
+    const prefix = `- ${qty}  `;
     const unitText = unit ? (unit.startsWith('/') ? unit : `/${unit}`) : '-';
-    const line1 = `- ${qty}  ${name}\n`;
-    const spaceCount = Math.max(2, lineWidth - indent.length - unitText.length - priceStr.length);
-    const line2 = `${indent}${unitText}${" ".repeat(spaceCount)}${priceStr}\n`;
+    const indent = "     ";
+    const availableForName = lineWidth - prefix.length - priceStr.length - 1;
+    let displayName = name;
+    if (displayName.length > availableForName && availableForName > 5) {
+      displayName = displayName.slice(0, availableForName - 1) + '…';
+    }
+    const spaceCount = Math.max(1, lineWidth - prefix.length - displayName.length - priceStr.length);
+    const line1 = `${prefix}${displayName}${" ".repeat(spaceCount)}${priceStr}\n`;
+    const line2 = `${indent}${unitText}\n`;
     return line1 + line2;
   }
 
@@ -477,10 +483,10 @@ function App() {
                           <span className="print-item-bullet">-</span>
                           <span className="print-item-qty">{qty}</span>
                           <span className="print-item-name">{item.name}</span>
+                          <span className="print-item-price">{price}</span>
                         </div>
                         <div className="print-item-row-2">
                           <span className="print-item-unit">{unit}</span>
-                          <span className="print-item-price">{price}</span>
                         </div>
                       </div>
                     );
@@ -525,22 +531,21 @@ function App() {
               <article className={`item ${item.is_selected ? 'is-checked' : ''}`} key={item.id}>
                 <button className="check" onClick={() => toggleItem(item)} aria-label={`Pilih ${item.name}`}>{item.is_selected ? '✓' : ''}</button>
                 <div className="item-info">
-                  <strong className="item-name">{item.name}</strong>
+                  <div className="item-title-row">
+                    <strong className="item-name">{item.name}</strong>
+                    {unitPrice > 0 && (
+                      <span className="item-price">
+                        Rp{unitPrice.toLocaleString('id-ID')}
+                        {item.is_selected && qty > 1 && (
+                          <span className="item-subtotal"> (Total: Rp{subtotal.toLocaleString('id-ID')})</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
                   <div className="item-meta">
                     <span className="item-cat">{item.categories?.name}</span>
                     <span className="item-sep">·</span>
                     <span className="item-unit">/{item.units?.name}</span>
-                    {unitPrice > 0 && (
-                      <>
-                        <span className="item-sep">·</span>
-                        <span className="item-price">
-                          Rp{unitPrice.toLocaleString('id-ID')}
-                          {item.is_selected && qty > 1 && (
-                            <span className="item-subtotal"> (Total: Rp{subtotal.toLocaleString('id-ID')})</span>
-                          )}
-                        </span>
-                      </>
-                    )}
                   </div>
                 </div>
                 <div className="item-actions">
@@ -629,10 +634,10 @@ function App() {
                   <span className="print-item-bullet">-</span>
                   <span className="print-item-qty">{qty}</span>
                   <span className="print-item-name">{item.name}</span>
+                  <span className="print-item-price">{subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'}</span>
                 </div>
                 <div className="print-item-row-2">
                   <span className="print-item-unit">/{item.units?.name || '-'}</span>
-                  <span className="print-item-price">{subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'}</span>
                 </div>
               </div>
             );

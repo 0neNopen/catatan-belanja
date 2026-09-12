@@ -29,26 +29,26 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 - **Direct Bluetooth ESC/POS**: Terhubung langsung ke printer thermal mini Bluetooth (58mm / 80mm).
 - **System / Browser Print Fallback**: Opsi cetak melalui dialog print browser/HP jika Bluetooth tidak tersedia.
 - **Format 2 Baris Anti-Terpotong**:
-  - **Baris 1**: `- (jumlah barang)  (nama barang)`
-  - **Baris 2**: Indentasi rapi memuat `(satuan)` di kiri dan `(harga)` **rata kanan** di ujung kertas 32 karakter sehingga nominal harga tidak akan terpotong atau patah ke baris baru.
+  - **Baris 1**: `- (jumlah barang)  (nama barang)` di kiri dan `(harga)` **rata kanan** sejajar dengan nama barang sehingga harga langsung terbaca jelas di samping nama barang.
+  - **Baris 2**: Indentasi rapi memuat `(satuan)` di bawah nama barang.
 - **Keterangan Total Barang**: Menampilkan akumulasi seluruh *quantity* barang yang dibeli tepat di atas Total Harga.
 - **Format Struk Catatan Belanja**:
   ```text
           CATATAN BELANJA
        Waktu: 21 Agu 2026, 09.30
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  - 2  Beras Ramos 5kg
-       /karung           Rp140.000
-  - 3  Minyak Bimoli 2L
-       /pouch             Rp99.000
-  - 1  Telur Ayam 1kg
-       /kg                Rp28.000
-  - 5  Gula Pasir 1kg
-       /kg                Rp75.000
-  - 2  Kopi Kapal Api
-       /renceng           Rp30.000
-  - 1  Indomie Goreng
-       /dus              Rp118.000
+  - 2  Beras Ramos 5kg   Rp140.000
+       /karung
+  - 3  Minyak Bimoli 2L   Rp99.000
+       /pouch
+  - 1  Telur Ayam 1kg     Rp28.000
+       /kg
+  - 5  Gula Pasir 1kg     Rp75.000
+       /kg
+  - 2  Kopi Kapal Api     Rp30.000
+       /renceng
+  - 1  Indomie Goreng    Rp118.000
+       /dus
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   Total Barang: 14 item
   Total: Rp490.000
@@ -61,24 +61,24 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   ===> SEMBAKO
-  - 2  Beras Ramos 5kg
-       /karung           Rp140.000
-  - 3  Minyak Bimoli 2L
-       /pouch             Rp99.000
-  - 5  Gula Pasir 1kg
-       /kg                Rp75.000
+  - 2  Beras Ramos 5kg   Rp140.000
+       /karung
+  - 3  Minyak Bimoli 2L   Rp99.000
+       /pouch
+  - 5  Gula Pasir 1kg     Rp75.000
+       /kg
 
   ===> MAKANAN & MINUMAN
-  - 1  Indomie Goreng
-       /dus              Rp118.000
-  - 2  Kopi Kapal Api
-       /renceng           Rp30.000
+  - 1  Indomie Goreng    Rp118.000
+       /dus
+  - 2  Kopi Kapal Api     Rp30.000
+       /renceng
 
   ===> KEBUTUHAN RUMAH
-  - 4  Sabun Mandi
-       /pcs               Rp16.000
-  - 2  Deterjen Bubuk
-       /bungkus           Rp34.000
+  - 4  Sabun Mandi        Rp16.000
+       /pcs
+  - 2  Deterjen Bubuk     Rp34.000
+       /bungkus
 
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   Total Barang: 19 item
