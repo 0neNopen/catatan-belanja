@@ -46,6 +46,15 @@ function App() {
     })
   }
 
+  const allowExitRef = useRef(false)
+  const modalRef = useRef(modal)
+  const viewRef = useRef(view)
+  const expandedHistoryRef = useRef(expandedHistory)
+
+  useEffect(() => { modalRef.current = modal }, [modal])
+  useEffect(() => { viewRef.current = view }, [view])
+  useEffect(() => { expandedHistoryRef.current = expandedHistory }, [expandedHistory])
+
   useEffect(() => {
     if (!supabase) return setLoading(false)
     let active = true
@@ -55,6 +64,52 @@ function App() {
   }, [])
 
   useEffect(() => { if (session) loadData() }, [session])
+
+  useEffect(() => {
+    if (!session) return
+
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      window.history.replaceState({ app: 'catatan-belanja' }, '', window.location.pathname)
+    }
+
+    window.history.pushState({ app: 'catatan-belanja' }, '', window.location.href)
+
+    const handlePopState = () => {
+      if (allowExitRef.current) return
+
+      if (modalRef.current) {
+        setModal(null)
+        window.history.pushState({ app: 'catatan-belanja' }, '', window.location.href)
+        return
+      }
+
+      if (expandedHistoryRef.current) {
+        setExpandedHistory(null)
+        window.history.pushState({ app: 'catatan-belanja' }, '', window.location.href)
+        return
+      }
+
+      if (viewRef.current !== 'list') {
+        setView('list')
+        window.history.pushState({ app: 'catatan-belanja' }, '', window.location.href)
+        return
+      }
+
+      window.history.pushState({ app: 'catatan-belanja' }, '', window.location.href)
+      setModal('confirm-exit')
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [session])
+
+  function handleConfirmExit() {
+    allowExitRef.current = true
+    setModal(null)
+    window.history.go(-2)
+  }
 
   useEffect(() => {
     if (!session || !supabase) return
@@ -617,34 +672,187 @@ function App() {
         </section>
       </>}
       {view === 'history' && <section className="history"><div className="section-title"><div><p className="eyebrow">ARSIP BELANJA</p><h2>Riwayat pembelian</h2></div><span>{filteredHistory.length} daftar</span></div><div className="history-filters"><button className={historyFilter === 'all' ? 'selected' : ''} onClick={() => setHistoryFilter('all')}>Semua</button><button className={historyFilter === 'today' ? 'selected' : ''} onClick={() => setHistoryFilter('today')}>Hari ini</button><button className={historyFilter === '7d' ? 'selected' : ''} onClick={() => setHistoryFilter('7d')}>7 hari</button><button className={historyFilter === 'month' ? 'selected' : ''} onClick={() => setHistoryFilter('month')}>Bulan ini</button></div>{filteredHistory.length ? filteredHistory.map((entry) => { const entryTotal = entry.items.reduce((sum, item) => sum + ((Number(item.price) || 0) * (item.quantity || 1)), 0); return <article className="history-card" key={entry.id}><div className="history-card-head"><button className="history-toggle" onClick={() => setExpandedHistory(expandedHistory === entry.id ? null : entry.id)}><strong>{new Date(entry.purchased_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</strong><span>{entry.items.length} barang dibeli · Total Rp{entryTotal.toLocaleString('id-ID')} · {expandedHistory === entry.id ? 'Tutup' : 'Lihat detail'}</span></button><div className="history-actions"><button className="history-print-btn" onClick={() => printReceipt('history', entry)}>Cetak</button><button className="history-delete" onClick={() => window.confirm('Hapus riwayat pembelian ini?') && run(() => supabase.from('purchase_history').delete().eq('id', entry.id))}>Hapus</button></div></div>{expandedHistory === entry.id && <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Barang</th><th>Kategori</th><th>Satuan</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead><tbody>{entry.items.map((item, index) => { const q = item.quantity || 1; const p = Number(item.price) || 0; return <tr key={`${entry.id}-${index}`}><td>{item.name}</td><td>{item.category || '-'}</td><td>/{item.unit || '-'}</td><td>{q}</td><td>{p ? `Rp${p.toLocaleString('id-ID')}` : '—'}</td><td>{p ? `Rp${(p * q).toLocaleString('id-ID')}` : '—'}</td></tr> })}</tbody><tfoot><tr><td colSpan="5" style={{ fontWeight: 700, textAlign: 'right', paddingRight: '12px' }}>Total</td><td style={{ fontWeight: 700 }}>Rp{entryTotal.toLocaleString('id-ID')}</td></tr></tfoot></table></div>}</article> }) : <div className="empty"><strong>Belum ada riwayat pada waktu ini.</strong><span>Ubah filter atau tandai daftar sebagai sudah dibeli.</span></div>}</section>}
-      {view === 'settings' && <section className="settings"><div className="section-title"><div><p className="eyebrow">ATUR SESUAI WARUNG</p><h2>Kategori & Satuan</h2></div></div><div className="setting-grid"><SettingBlock title="Kategori" items={data.categories} onAdd={() => addNamed('categories', 'kategori')} onDelete={(item) => { if (data.items.some((i) => i.category_id === item.id)) return window.alert('Kategori masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('categories').delete().eq('id', item.id)) }} /><SettingBlock title="Satuan" items={data.units} onAdd={() => addNamed('units', 'satuan')} onDelete={(item) => { if (data.items.some((i) => i.unit_id === item.id)) return window.alert('Satuan masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('units').delete().eq('id', item.id)) }} /></div></section>}    </main>
+      {view === 'settings' && <section className="settings"><div className="section-title"><div><p className="eyebrow">ATUR SESUAI WARUNG</p><h2>Kategori & Satuan</h2></div></div><div className="setting-grid"><SettingBlock title="Kategori" items={data.categories} onAdd={() => addNamed('categories', 'kategori')} onDelete={(item) => { if (data.items.some((i) => i.category_id === item.id)) return window.alert('Kategori masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('categories').delete().eq('id', item.id)) }} /><SettingBlock title="Satuan" items={data.units} onAdd={() => addNamed('units', 'satuan')} onDelete={(item) => { if (data.items.some((i) => i.unit_id === item.id)) return window.alert('Satuan masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('units').delete().eq('id', item.id)) }} /></div><PasswordSettingBlock /></section>}    </main>
     {toast && <div className="toast" role="status">{toast}</div>}
     {modal === 'item' && <div className="modal-backdrop" onMouseDown={() => setModal(null)}><form className="modal" onSubmit={saveItem} onMouseDown={(e) => e.stopPropagation()}><div className="modal-head"><h2>{draft.id ? 'Edit barang' : 'Tambah barang'}</h2><button type="button" onClick={() => setModal(null)}>×</button></div><label>Nama barang<input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Contoh: Beras premium" /></label><label>Harga<input type="number" min="0" step="1" value={draft.price || ''} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="Contoh: 15000" /></label><label>Kategori<select value={draft.categoryId} onChange={(e) => setDraft({ ...draft, categoryId: e.target.value })}>{data.categories.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>Satuan<select value={draft.unitId} onChange={(e) => setDraft({ ...draft, unitId: e.target.value })}>{data.units.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><button className="primary modal-submit">Simpan barang</button></form></div>}
     {modal === 'bluetooth-guide' && <div className="modal-backdrop" onMouseDown={() => setModal(null)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><div className="modal-head"><h2>Web Bluetooth Belum Aktif</h2><button type="button" onClick={() => setModal(null)}>×</button></div><p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: '1.6', margin: '0 0 12px' }}>Pada <strong>Linux Desktop</strong>, Chrome mematikan Web Bluetooth secara default. Cara mengaktifkannya:</p><ol style={{ fontSize: '13px', paddingLeft: '18px', lineHeight: '1.7', margin: '0 0 16px', color: 'var(--ink)' }}><li>Buka tab baru di Chrome, lalu ketik:<br /><code style={{ background: '#e9ede6', padding: '3px 6px', borderRadius: '4px', font: '11px "DM Mono"', userSelect: 'all' }}>chrome://flags/#enable-web-bluetooth-nightly</code></li><li>Ubah opsi dari <strong>Default</strong> menjadi <strong>Enabled</strong>.</li><li>Klik tombol <strong>Relaunch</strong> di kanan bawah Chrome.</li></ol><p style={{ fontSize: '11px', color: 'var(--muted)', margin: '0 0 18px' }}>*Di HP Android, Windows, & macOS, fitur ini sudah aktif otomatis.</p><button className="primary modal-submit" onClick={() => setModal(null)}>Saya Mengerti</button></div></div>}
     {modal === 'print-error-fallback' && <div className="modal-backdrop" onMouseDown={() => setModal(null)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><div className="modal-head"><h2>Opsi Pencetakan</h2><button type="button" onClick={() => setModal(null)}>×</button></div><p style={{ fontSize: '13px', color: '#66746d', lineHeight: '1.5', margin: '0 0 10px', background: '#f4f6f2', padding: '10px', borderRadius: '6px' }}>{pendingPrint?.error || 'Koneksi Bluetooth tidak tersedia.'}</p><p style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: '1.6', margin: '0 0 16px' }}>Anda tetap dapat mencetak menggunakan **System Print** (Fitur Cetak HP / AirPrint / Driver Windows).</p><div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}><button className="primary modal-submit" style={{ marginTop: 0 }} onClick={() => doFallbackPrint(pendingPrint?.type, pendingPrint?.entry)}>Cetak via System Print (Biasa)</button><button type="button" style={{ border: '1px solid var(--line)', background: 'transparent', padding: '10px', borderRadius: '6px', font: '12px "Plus Jakarta Sans"', color: 'var(--ink)' }} onClick={() => { setModal(null); printReceipt(pendingPrint?.type, pendingPrint?.entry); }}>Coba Hubungkan Bluetooth Lagi</button></div></div></div>}
+    {modal === 'confirm-exit' && (
+      <div className="modal-backdrop" onMouseDown={() => setModal(null)}>
+        <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="modal-head">
+            <h2>Keluar dari Catatan Belanja?</h2>
+            <button type="button" onClick={() => setModal(null)}>×</button>
+          </div>
+          <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: '1.6', margin: '0 0 20px' }}>
+            Apakah Anda yakin ingin meninggalkan aplikasi Catatan Belanja? Data dan daftar belanja Anda tetap tersimpan aman di akun Anda.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button 
+              className="primary modal-submit" 
+              style={{ marginTop: 0 }} 
+              onClick={() => setModal(null)}
+            >
+              Tetap di Aplikasi
+            </button>
+            <button 
+              type="button" 
+              style={{ 
+                border: '1px solid #efc6bd', 
+                background: '#fbe8e4', 
+                color: '#984b43', 
+                padding: '12px', 
+                borderRadius: '6px', 
+                font: '13px "Plus Jakarta Sans"', 
+                fontWeight: 600, 
+                cursor: 'pointer' 
+              }} 
+              onClick={handleConfirmExit}
+            >
+              Ya, Keluar dari Web
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 }
 
 function SettingBlock({ title, items, onAdd, onDelete }) { return <div className="setting-block"><div className="block-head"><strong>{title}</strong><button onClick={onAdd}>+ Tambah</button></div>{items.map((item) => <div className="setting-row" key={item.id}><span>{title === 'Satuan' ? '/' : ''}{item.name}</span><button onClick={() => onDelete(item)}>Hapus</button></div>)}</div> }
+
+function PasswordSettingBlock() {
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState({ text: '', isError: false })
+
+  async function handleSave(e) {
+    e.preventDefault()
+    setMsg({ text: '', isError: false })
+    if (!password) {
+      return setMsg({ text: 'Masukkan kata sandi baru.', isError: true })
+    }
+    if (password.length < 6) {
+      return setMsg({ text: 'Kata sandi minimal 6 karakter.', isError: true })
+    }
+    if (password !== confirm) {
+      return setMsg({ text: 'Konfirmasi kata sandi tidak cocok.', isError: true })
+    }
+    setSaving(true)
+    const { error } = await supabase.auth.updateUser({ password })
+    setSaving(false)
+    if (error) {
+      setMsg({ text: error.message, isError: true })
+    } else {
+      setPassword('')
+      setConfirm('')
+      setMsg({ text: 'Kata sandi berhasil disimpan! Anda sekarang bisa login langsung menggunakan email & kata sandi (tanpa menunggu email).', isError: false })
+    }
+  }
+
+  return (
+    <div className="setting-block" style={{ marginTop: '20px' }}>
+      <div className="block-head">
+        <strong>Kata Sandi Akun</strong>
+        <span style={{ fontSize: '11px', color: 'var(--muted)', font: '11px "DM Mono"' }}>Bebas Limit Email</span>
+      </div>
+      <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: '1.6', margin: '14px 0 16px' }}>
+        Atur kata sandi agar Anda bisa langsung login kapan saja tanpa perlu menunggu tautan email atau terkena batas limit email.
+      </p>
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', font: '12px "DM Mono"', color: 'var(--muted)' }}>
+          Kata Sandi Baru (min. 6 karakter)
+          <input 
+            type="password" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            placeholder="Minimal 6 karakter"
+            style={{ border: '1px solid var(--line)', background: 'white', borderRadius: '6px', padding: '10px 12px', font: '13px "Plus Jakarta Sans"' }}
+          />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', font: '12px "DM Mono"', color: 'var(--muted)' }}>
+          Ulangi Kata Sandi
+          <input 
+            type="password" 
+            value={confirm} 
+            onChange={(e) => setConfirm(e.target.value)} 
+            placeholder="Ketik ulang kata sandi"
+            style={{ border: '1px solid var(--line)', background: 'white', borderRadius: '6px', padding: '10px 12px', font: '13px "Plus Jakarta Sans"' }}
+          />
+        </label>
+        {msg.text && (
+          <div style={{ 
+            fontSize: '12px', 
+            padding: '10px 12px', 
+            borderRadius: '6px', 
+            background: msg.isError ? '#fbe8e4' : '#e8f0df', 
+            color: msg.isError ? '#984b43' : 'var(--green)',
+            border: `1px solid ${msg.isError ? '#efc6bd' : '#c8ddb6'}`
+          }}>
+            {msg.text}
+          </div>
+        )}
+        <button 
+          type="submit" 
+          className="primary" 
+          disabled={saving || !password}
+          style={{ alignSelf: 'flex-start', padding: '10px 18px', marginTop: '4px' }}
+        >
+          {saving ? 'Menyimpan...' : 'Simpan Kata Sandi'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 function Notice({ title, children }) { return <div className="auth-screen"><div className="auth-card"><img src="/favicon.svg" alt="Logo" className="brand-mark" /><h1>{title}</h1><p>{children}</p></div></div> }
+
 function Auth() {
+  const [authMode, setAuthMode] = useState('password')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [sent, setSent] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [cooldown, setCooldown] = useState(() => Math.max(0, Number(sessionStorage.getItem('otp-cooldown-until') || 0) - Date.now()))
+
   useEffect(() => {
     if (!cooldown) return undefined
     const timer = window.setInterval(() => setCooldown((remaining) => Math.max(0, remaining - 1000)), 1000)
     return () => window.clearInterval(timer)
   }, [cooldown])
-  async function submit(event) {
+
+  async function handlePasswordSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSubmitting(true)
+    const { error: result } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password
+    })
+    setSubmitting(false)
+    if (result) {
+      if (result.message?.toLowerCase().includes('invalid login credentials')) {
+        setError('Email atau kata sandi tidak cocok. Jika belum pernah membuat kata sandi, masuk lewat tab "Tautan Email" terlebih dahulu, lalu buat kata sandi di Pengaturan.')
+      } else {
+        setError(result.message)
+      }
+    }
+  }
+
+  async function handleOtpSubmit(event) {
     event.preventDefault()
     if (cooldown > 0) return
     setError('')
-    const { error: result } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } })
+    setSubmitting(true)
+    const { error: result } = await supabase.auth.signInWithOtp({ 
+      email: email.trim(), 
+      options: { emailRedirectTo: window.location.origin } 
+    })
+    setSubmitting(false)
     if (result) {
       const limited = result.code === 'over_request_rate_limit' || result.status === 429 || result.message.toLowerCase().includes('rate limit')
-      setError(limited ? 'Batas email Supabase tercapai. Tunggu sekitar 1 jam atau gunakan email lain.' : result.message)
+      setError(limited ? 'Batas email Supabase tercapai. Gunakan tab "Kata Sandi" di atas untuk masuk langsung tanpa menunggu kiriman email.' : result.message)
       if (limited) { sessionStorage.setItem('otp-cooldown-until', String(Date.now() + 3600000)); setCooldown(3600000) }
       return
     }
@@ -652,8 +860,95 @@ function Auth() {
     setCooldown(60000)
     setSent(true)
   }
+
   const seconds = Math.ceil(cooldown / 1000)
-  return <div className="auth-screen"><form className="auth-card" onSubmit={submit}><img src="/favicon.svg" alt="Logo" className="brand-mark" /><p className="eyebrow">CATATAN STOK WARUNG</p><h1>Masuk untuk<br /><em>mulai.</em></h1><p>{sent ? 'Tautan masuk sudah dikirim. Cek email sebelum meminta tautan baru.' : 'Gunakan email untuk menyinkronkan daftar di HP dan laptop.'}</p>{!sent && <><label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" /></label><button className="primary modal-submit" disabled={cooldown > 0}>{cooldown > 0 ? `Coba lagi dalam ${seconds} detik` : 'Kirim tautan masuk'}</button></>}{sent && <button type="button" className="primary modal-submit" onClick={() => setSent(false)} disabled={cooldown > 0}>{cooldown > 0 ? `Kirim ulang dalam ${seconds} detik` : 'Kirim ulang tautan'}</button>}{error && <div className="error">{error}</div>}</form></div>
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <img src="/favicon.svg" alt="Logo" className="brand-mark" />
+        <p className="eyebrow">CATATAN STOK WARUNG</p>
+        <h1>Masuk untuk<br /><em>mulai.</em></h1>
+        
+        <div className="auth-tabs" role="tablist">
+          <button 
+            type="button" 
+            className={`auth-tab ${authMode === 'password' ? 'active' : ''}`}
+            onClick={() => { setAuthMode('password'); setError('') }}
+          >
+            Kata Sandi (Instan)
+          </button>
+          <button 
+            type="button" 
+            className={`auth-tab ${authMode === 'magiclink' ? 'active' : ''}`}
+            onClick={() => { setAuthMode('magiclink'); setError('') }}
+          >
+            Tautan Email
+          </button>
+        </div>
+
+        {authMode === 'password' ? (
+          <form onSubmit={handlePasswordSubmit}>
+            <p>Masuk langsung tanpa perlu menunggu email OTP.</p>
+            <label>
+              Email
+              <input 
+                type="email" 
+                required 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                placeholder="nama@email.com" 
+              />
+            </label>
+            <label style={{ marginTop: '12px' }}>
+              Kata Sandi
+              <input 
+                type="password" 
+                required 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                placeholder="Masukkan kata sandi" 
+              />
+            </label>
+            <button className="primary modal-submit" disabled={submitting}>
+              {submitting ? 'Memeriksa...' : 'Masuk sekarang'}
+            </button>
+            <p style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '14px', lineHeight: '1.5' }}>
+              *Belum punya kata sandi? Masuk lewat tab <strong>"Tautan Email"</strong>, lalu atur kata sandi Anda di menu Pengaturan.
+            </p>
+          </form>
+        ) : (
+          <form onSubmit={handleOtpSubmit}>
+            <p>{sent ? 'Tautan masuk sudah dikirim. Cek email sebelum meminta tautan baru.' : 'Kirim tautan masuk satu kali klik ke alamat email Anda.'}</p>
+            {!sent && (
+              <>
+                <label>
+                  Email
+                  <input 
+                    type="email" 
+                    required 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                    placeholder="nama@email.com" 
+                  />
+                </label>
+                <button className="primary modal-submit" disabled={cooldown > 0 || submitting}>
+                  {submitting ? 'Mengirim...' : cooldown > 0 ? `Coba lagi dalam ${seconds} detik` : 'Kirim tautan masuk'}
+                </button>
+              </>
+            )}
+            {sent && (
+              <button type="button" className="primary modal-submit" onClick={() => setSent(false)} disabled={cooldown > 0}>
+                {cooldown > 0 ? `Kirim ulang dalam ${seconds} detik` : 'Kirim ulang tautan'}
+              </button>
+            )}
+          </form>
+        )}
+
+        {error && <div className="error" style={{ marginTop: '16px' }}>{error}</div>}
+      </div>
+    </div>
+  )
 }
 
 export default App
