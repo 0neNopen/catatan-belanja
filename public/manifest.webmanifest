@@ -1,0 +1,19 @@
+{
+  "name": "Catatan Belanja",
+  "short_name": "Catatan Belanja",
+  "description": "Aplikasi Catatan Belanja Warung & Manajemen Stok Barang",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f2f4ed",
+  "theme_color": "#17332c",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

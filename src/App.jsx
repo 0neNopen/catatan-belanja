@@ -124,7 +124,7 @@ function App() {
       supabase.from('categories').select('*').order('created_at', { ascending: false }),
       supabase.from('units').select('*').order('created_at', { ascending: false }),
       supabase.from('items').select('*, categories(name), units(name)').order('is_selected', { ascending: false }).order('id', { ascending: false }),
-      supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }),
+      supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }).limit(30),
     ])
     const failure = [categories, units, items, history].find((result) => result.error)
     if (failure) {
@@ -159,7 +159,7 @@ function App() {
               supabase.from('categories').select('*').order('created_at', { ascending: false }),
               supabase.from('units').select('*').order('created_at', { ascending: false }),
               supabase.from('items').select('*, categories(name), units(name)').order('is_selected', { ascending: false }).order('id', { ascending: false }),
-              supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }),
+              supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }).limit(30),
             ])
             const retryFailure = [c, u, i, h].find((r) => r.error)
             if (retryFailure) {
@@ -213,7 +213,7 @@ function App() {
   async function saveItem(event) {
     event.preventDefault()
     if (!draft.name.trim() || !draft.categoryId || !draft.unitId) return setError('Buat kategori dan satuan sebelum menyimpan barang.')
-    const payload = { name: draft.name.trim(), price: Number(draft.price) || 0, category_id: draft.categoryId, unit_id: draft.unitId, is_selected: draft.is_selected || false, user_id: session.user.id }
+    const payload = { name: draft.name.trim(), price: Math.max(0, Math.round(Number(draft.price) || 0)), category_id: draft.categoryId, unit_id: draft.unitId, is_selected: draft.is_selected || false, user_id: session.user.id }
     await run(() => draft.id ? supabase.from('items').update(payload).eq('id', draft.id) : supabase.from('items').insert(payload))
     setModal(null)
   }
@@ -341,9 +341,10 @@ function App() {
     text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
     text += "\n\n\n";
 
+    let device = null;
     try {
       setToast('Pilih printer Bluetooth Anda...');
-      const device = await navigator.bluetooth.requestDevice({
+      device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices: [
           '000018f0-0000-1000-8000-00805f9b34fb', // Standard thermal printer service
@@ -393,6 +394,9 @@ function App() {
 
     } catch (err) {
       console.error('Bluetooth Print Error:', err);
+      if (device && device.gatt && device.gatt.connected) {
+        try { device.gatt.disconnect(); } catch {}
+      }
       const isCancelled = err.name === 'NotFoundError';
       setPendingPrint({
         type,
@@ -507,6 +511,12 @@ function App() {
           <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
         </div>
         <section className="toolbar"><label className="search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari barang..." /></label><button className="primary" disabled={!data.categories.length || !data.units.length} onClick={() => { setDraft({ name: '', categoryId: data.categories[0]?.id || '', unitId: data.units[0]?.id || '' }); setModal('item') }}>+ Tambah barang</button></section>
+        {(!data.categories.length || !data.units.length) && (
+          <div style={{ background: '#eef4e8', border: '1px solid #cce2c3', borderRadius: '8px', padding: '12px 16px', margin: '0 0 16px', fontSize: '13px', color: 'var(--green)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>💡 Belum ada kategori atau satuan. Tambahkan di menu <strong>Pengaturan</strong> untuk mulai menambah barang.</span>
+            <button onClick={() => setView('settings')} style={{ background: 'var(--green)', color: 'white', border: 0, padding: '6px 12px', borderRadius: '6px', font: '12px "Plus Jakarta Sans"', cursor: 'pointer', marginLeft: '12px', flexShrink: 0 }}>Ke Pengaturan</button>
+          </div>
+        )}
         <div className="category-row">{categories.map((item) => <button key={item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
         <section className="list-head">
           <span>

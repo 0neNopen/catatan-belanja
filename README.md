@@ -91,6 +91,7 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 - **Tandai Selesai Belanja**: Memindahkan daftar barang belanja yang dipilih ke dalam arsip riwayat pembelian dalam sekali klik.
 - **Detail Rinci**: Riwayat memuat tanggal transaksi, rincian barang, kategori, satuan, jumlah beli (qty), harga satuan, dan subtotal.
 - **Filter Waktu**: Filter riwayat berdasarkan Semua, Hari ini, 7 hari terakhir, atau Bulan ini.
+- **Optimasi Kuota (Limit 30 Transaksi)**: Query dibatasi maksimal 30 transaksi terakhir sehingga konsumsi database Supabase super ringan dan aplikasi tetap gesit selamanya.
 - **Cetak Ulang & Hapus Riwayat**: Kemudahan mencetak ulang struk riwayat kapan saja atau menghapus arsip yang sudah tidak diperlukan.
 
 ### 6. Branding & Logo Resmi
@@ -114,7 +115,11 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 - **GitHub Actions Keep-Alive**: Otomatisasi cron job yang melakukan ping ke Supabase REST API setiap 5 hari sekali agar project Supabase Free Tier tidak pernah di-pause otomatis karena tidak aktif.
 - **Layar Membangunkan Database**: Jika database sedang resume setelah idle, antarmuka menampilkan pesan ramah *"Membangunkan database..."* disertai animasi countdown 5 detik dan sistem retry otomatis hingga 1 menit tanpa membuat pengguna panik atau melihat pesan error mentah.
 
-### 10. Import Data Massal (CSV)
+### 10. Dukungan PWA (Install ke Layar Utama HP)
+- **Aplikasi Native-like**: Pengguna dapat mengklik **"Install / Tambahkan ke Layar Utama"** di browser HP (Android & iOS).
+- **Layar Penuh (Standalone)**: Aplikasi terbuka tanpa bilah alamat (*URL bar*) browser, terasa seperti aplikasi native (APK), dan sepenuhnya mengeliminasi risiko salah pencet tombol navigasi browser.
+
+### 11. Import Data Massal (CSV)
 - Tersedia script Node.js untuk memasukkan ratusan data barang sekaligus dari file CSV secara otomatis dan tervalidasi.
 
 ---
@@ -236,7 +241,8 @@ src/
 ├── styles.css           # Desain antarmuka, paginasi, responsivitas HP, auth tabs, & styling print
 └── supabase.js          # Inisialisasi Supabase client dengan persistent session
 public/
-└── favicon.svg          # Logo resmi brand & favicon web
+├── favicon.svg          # Logo resmi brand & favicon web
+└── manifest.webmanifest # Konfigurasi PWA untuk install ke layar utama HP
 import/
 ├── data-template.csv    # Template file data CSV barang
 ├── import.js            # Script import data massal
