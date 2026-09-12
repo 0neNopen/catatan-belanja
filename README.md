@@ -96,11 +96,25 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 ### 6. Branding & Logo Resmi
 - Dilengkapi logo vektor SVG resmi (ikon tas belanja dengan checklist centang hijau) yang terintegrasi pada Favicon browser, topbar aplikasi, serta halaman login.
 
-### 7. Multi-Device & Autentikasi Cloud
-- **Passwordless Auth**: Masuk aman menggunakan Magic Link / OTP via Email.
+### 7. Autentikasi Fleksibel & Bebas Limit (Dual-Mode Auth)
+- **Login Kata Sandi (Instan)**: Masuk langsung menggunakan email dan kata sandi dalam 2 detik tanpa perlu menunggu email dan 100% bebas dari risiko terkena batas rate-limit 1 jam Supabase.
+- **Tautan Email (Magic Link / OTP)**: Opsi alternatif masuk satu kali klik via email bagi pengguna baru atau yang lupa kata sandi.
+- **Pengaturan Kata Sandi Mandiri**: Pengguna dapat membuat atau mengganti kata sandi akun kapan saja langsung dari tab **Pengaturan**.
 - **Sinkronisasi Realtime**: Perubahan data di HP langsung tersinkron ke laptop secara realtime melalui Supabase WebSockets.
 
-### 8. Import Data Massal (CSV)
+### 8. Anti-Keluar Tidak Sengaja (Back-Button Navigation Guard)
+- **Cegah Terlempar Keluar**: Tombol *Back* peramban atau gesture swipe di HP tidak akan langsung menutup website.
+- **Tutup Modal Bertingkat**: Jika sedang membuka pop-up (Tambah/Edit barang, opsi Cetak, atau panduan Bluetooth), tombol *Back* akan menutup modal tersebut terlebih dahulu.
+- **Pindah Tab Cerdas**: Jika sedang di tab Riwayat atau Pengaturan, tombol *Back* akan mengembalikan tampilan ke tab Daftar Barang.
+- **Modal Verifikasi Keluar**: Jika pengguna menekan *Back* di halaman utama, akan muncul konfirmasi:
+  > *"Keluar dari Catatan Belanja?"* `[ Tetap di Aplikasi ]` `[ Ya, Keluar dari Web ]`
+  sehingga data belanjaan dan sesi tidak hilang secara tidak sengaja.
+
+### 9. Pencegahan Auto-Pause Supabase & Layar Auto-Resume
+- **GitHub Actions Keep-Alive**: Otomatisasi cron job yang melakukan ping ke Supabase REST API setiap 5 hari sekali agar project Supabase Free Tier tidak pernah di-pause otomatis karena tidak aktif.
+- **Layar Membangunkan Database**: Jika database sedang resume setelah idle, antarmuka menampilkan pesan ramah *"Membangunkan database..."* disertai animasi countdown 5 detik dan sistem retry otomatis hingga 1 menit tanpa membuat pengguna panik atau melihat pesan error mentah.
+
+### 10. Import Data Massal (CSV)
 - Tersedia script Node.js untuk memasukkan ratusan data barang sekaligus dari file CSV secara otomatis dan tervalidasi.
 
 ---
@@ -201,16 +215,26 @@ File bundle produksi siap pakai akan dihasilkan di folder `dist/`.
    - `VITE_SUPABASE_ANON_KEY`
 3. Setelah mendapat domain production, tambahkan URL tersebut ke Supabase *Authentication* → *URL Configuration*.
 
+### Konfigurasi GitHub Actions (Keep-Alive Supabase)
+Agar workflow otomatis pencegah auto-pause di `.github/workflows/keep-alive.yml` dapat berjalan:
+1. Buka repository di GitHub → **Settings** → **Secrets and variables** → **Actions**.
+2. Klik **New repository secret** dan tambahkan:
+   - `SUPABASE_URL`: URL project Supabase Anda (contoh: `https://xxxx.supabase.co`)
+   - `SUPABASE_ANON_KEY`: Kunci anonim publik Supabase Anda
+
 ---
 
 ## Struktur Folder
 
 ```text
+.github/
+└── workflows/
+    └── keep-alive.yml   # Workflow GitHub Actions untuk ping Supabase otomatis tiap 5 hari
 src/
-├── App.jsx              # Komponen utama aplikasi, logika belanja, paginasi, print, & state
+├── App.jsx              # Komponen utama aplikasi, logika belanja, paginasi, print, auth, & state
 ├── main.jsx             # Entry point React
-├── styles.css           # Desain antarmuka, paginasi, responsivitas HP, & styling print
-└── supabase.js          # Inisialisasi Supabase client
+├── styles.css           # Desain antarmuka, paginasi, responsivitas HP, auth tabs, & styling print
+└── supabase.js          # Inisialisasi Supabase client dengan persistent session
 public/
 └── favicon.svg          # Logo resmi brand & favicon web
 import/
