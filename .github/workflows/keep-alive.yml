@@ -1,0 +1,31 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Jalankan setiap 5 hari sekali (jam 00:00 UTC)
+    # Lebih pendek dari batas 7 hari Supabase Free Tier
+    - cron: '0 0 */5 * *'
+  workflow_dispatch: # Bisa di-trigger manual dari GitHub Actions tab
+
+jobs:
+  ping:
+    name: Ping Supabase agar tidak di-pause
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          echo "Mengirim ping ke Supabase..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+
+          echo "HTTP Status: $RESPONSE"
+
+          if [ "$RESPONSE" -ge 200 ] && [ "$RESPONSE" -lt 500 ]; then
+            echo "✅ Supabase aktif dan merespons (status $RESPONSE)."
+          else
+            echo "⚠️  Supabase merespons dengan status $RESPONSE. Mungkin sedang resume."
+            # Jangan fail — resume adalah kondisi normal, ping sudah membantu
+          fi

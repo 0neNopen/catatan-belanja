@@ -21,6 +21,9 @@ function App() {
   const [printHistoryId, setPrintHistoryId] = useState(null)
   const [pendingPrint, setPendingPrint] = useState(null)
   const [toast, setToast] = useState('')
+  const [dbWaking, setDbWaking] = useState(false)
+  const [wakeCountdown, setWakeCountdown] = useState(0)
+  const wakeRetryRef = React.useRef(null)
   const [quantities, setQuantities] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('cb_item_quantities') || '{}')
@@ -60,7 +63,7 @@ function App() {
     return () => { supabase.removeChannel(channel) }
   }, [session])
 
-  async function loadData() {
+  async function loadData({ isRetry = false } = {}) {
     setError('')
     const [categories, units, items, history] = await Promise.all([
       supabase.from('categories').select('*').order('created_at', { ascending: false }),
@@ -69,7 +72,56 @@ function App() {
       supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }),
     ])
     const failure = [categories, units, items, history].find((result) => result.error)
-    if (failure) return setError(failure.error.message)
+    if (failure) {
+      // Deteksi apakah ini kemungkinan Supabase sedang resume dari pause
+      const isDbWaking = !isRetry &&
+        (failure.error.message?.toLowerCase().includes('fetch') ||
+         failure.error.message?.toLowerCase().includes('network') ||
+         failure.error.message?.toLowerCase().includes('failed') ||
+         failure.error.code === 'PGRST301' ||
+         failure.error.status === 503 ||
+         failure.error.status === 0)
+      if (isDbWaking) {
+        setDbWaking(true)
+        let attempts = 0
+        const maxAttempts = 12 // 12 × 5 detik = 1 menit
+        function scheduleRetry() {
+          attempts++
+          if (attempts > maxAttempts) {
+            setDbWaking(false)
+            setError('Database tidak dapat terhubung setelah 1 menit. Coba refresh halaman.')
+            return
+          }
+          let countdown = 5
+          setWakeCountdown(countdown)
+          const tick = window.setInterval(() => {
+            countdown--
+            setWakeCountdown(countdown)
+            if (countdown <= 0) window.clearInterval(tick)
+          }, 1000)
+          wakeRetryRef.current = window.setTimeout(async () => {
+            const [c, u, i, h] = await Promise.all([
+              supabase.from('categories').select('*').order('created_at', { ascending: false }),
+              supabase.from('units').select('*').order('created_at', { ascending: false }),
+              supabase.from('items').select('*, categories(name), units(name)').order('is_selected', { ascending: false }).order('id', { ascending: false }),
+              supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }),
+            ])
+            const retryFailure = [c, u, i, h].find((r) => r.error)
+            if (retryFailure) {
+              scheduleRetry()
+            } else {
+              setDbWaking(false)
+              setWakeCountdown(0)
+              setData({ categories: c.data, units: u.data, items: i.data, history: h.data })
+            }
+          }, 5000)
+        }
+        scheduleRetry()
+        return
+      }
+      return setError(failure.error.message)
+    }
+    setDbWaking(false)
     setData({ categories: categories.data, units: units.data, items: items.data, history: history.data })
   }
 
@@ -311,6 +363,25 @@ function App() {
 
   if (!supabaseConfigured) return <Notice title="Supabase belum dikonfigurasi">Tambahkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` pada `.env.local`.</Notice>
   if (loading) return <Notice title="Memuat Catatan Belanja...">Menghubungkan ke Supabase.</Notice>
+  if (dbWaking) return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <img src="/favicon.svg" alt="Logo" className="brand-mark" />
+        <p className="eyebrow">CATATAN STOK WARUNG</p>
+        <h1>Membangunkan<br /><em>database...</em></h1>
+        <p style={{ lineHeight: '1.6', color: 'var(--muted)', fontSize: '14px' }}>
+          Database sedang aktif kembali setelah beberapa hari tidak digunakan.
+          Ini hanya terjadi sekali dan biasanya selesai dalam <strong>30–60 detik</strong>.
+        </p>
+        <div style={{ marginTop: '16px', padding: '12px 16px', background: 'var(--surface)', borderRadius: '8px', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '20px', animation: 'spin 1.2s linear infinite', display: 'inline-block' }}>⟳</span>
+          <span style={{ fontSize: '13px', color: 'var(--ink)' }}>
+            {wakeCountdown > 0 ? `Mencoba ulang dalam ${wakeCountdown} detik...` : 'Menghubungkan...'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
 
   if (!session) return <Auth />
 
