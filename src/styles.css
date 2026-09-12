@@ -90,13 +90,36 @@ body {
   color: #a2aea7;
 }
 
+.nav-logout,
 .icon-button {
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-weight: 800;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f8f5;
+  color: #55665d;
+  border: 1px solid #d4ddd3;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
   cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  line-height: 1.2;
+}
+
+.nav-logout:hover,
+.icon-button:hover {
+  background: #fdf2f0;
+  border-color: #f8d4ce;
+  color: #b83a2e;
+  box-shadow: 0 2px 6px rgba(184, 58, 46, 0.08);
+}
+
+.nav-logout:active,
+.icon-button:active {
+  transform: scale(0.96);
 }
 
 .primary {
@@ -547,36 +570,69 @@ button {
   padding: 0 4px;
 }
 
-.edit, .delete {
-  border: 1px solid var(--line);
+/* Unified Action Buttons (Daftar Barang, Riwayat, & Pengaturan) */
+.btn-action,
+.edit,
+.delete,
+.history-print-btn,
+.history-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 6px;
-  padding: 7px 14px;
-  font: 600 12px 'Plus Jakarta Sans';
+  padding: 6px 14px;
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.16s ease;
   white-space: nowrap;
+  user-select: none;
+  line-height: 1.2;
 }
 
-.edit {
-  background: #f0f5ed;
+.btn-action:active,
+.edit:active,
+.delete:active,
+.history-print-btn:active,
+.history-delete:active {
+  transform: scale(0.96);
+}
+
+/* Secondary Actions (Edit Barang & Cetak Struk) */
+.btn-secondary,
+.edit,
+.history-print-btn {
+  background: #edf5ee;
   color: var(--green);
-  border-color: #d1ded0;
+  border: 1px solid #cce2d3;
+  box-shadow: 0 1px 2px rgba(23, 97, 72, 0.05);
 }
 
-.edit:hover {
-  background: #e2ede0;
+.btn-secondary:hover,
+.edit:hover,
+.history-print-btn:hover {
+  background: #dfeee2;
+  border-color: #b5d7c0;
   color: #0e4431;
+  box-shadow: 0 2px 5px rgba(23, 97, 72, 0.1);
 }
 
-.delete {
-  background: #fdf3f2;
-  color: #b84338;
-  border-color: #f7d6d3;
+/* Destructive Actions (Hapus Barang & Hapus Riwayat) */
+.btn-danger,
+.delete,
+.history-delete {
+  background: #fdf2f0;
+  color: #b83a2e;
+  border: 1px solid #f8d4ce;
+  box-shadow: 0 1px 2px rgba(184, 58, 46, 0.05);
 }
 
-.delete:hover {
-  background: #fce6e4;
-  color: #942b21;
+.btn-danger:hover,
+.delete:hover,
+.history-delete:hover {
+  background: #fbe3df;
+  border-color: #f1bcb2;
+  color: #94271c;
+  box-shadow: 0 2px 5px rgba(184, 58, 46, 0.1);
 }
 
 /* Pagination */
@@ -853,6 +909,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
 }
 
 .history-toggle {
@@ -864,6 +921,8 @@ button {
   padding: 0;
   text-align: left;
   color: var(--ink);
+  cursor: pointer;
+  flex: 1;
 }
 
 .history-toggle span {
@@ -873,22 +932,9 @@ button {
 
 .history-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
-}
-
-.history-print-btn {
-  background: none;
-  border: 0;
-  color: var(--green);
-  font: 14px 'DM Mono';
-}
-
-.history-delete {
-  background: none;
-  border: 0;
-  color: #ac6d66;
-  font: 14px 'DM Mono';
+  flex-shrink: 0;
 }
 
 .history-table-wrap {
@@ -952,24 +998,74 @@ button {
   font-size: 18px;
 }
 
+.btn-primary-sm,
 .block-head button {
-  border: 0;
-  background: none;
-  color: var(--green);
-  font: 14px 'DM Mono';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green);
+  color: white;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  box-shadow: 0 1px 3px rgba(23, 97, 72, 0.15);
+  white-space: nowrap;
+  user-select: none;
+  line-height: 1.2;
+}
+
+.btn-primary-sm:hover,
+.block-head button:hover {
+  background: #124e3a;
+  border-color: #124e3a;
+  box-shadow: 0 2px 6px rgba(23, 97, 72, 0.25);
+}
+
+.btn-primary-sm:active,
+.block-head button:active {
+  transform: scale(0.96);
 }
 
 .setting-row {
-  padding: 14px 0;
+  padding: 12px 0;
   border-bottom: 1px solid #edf0ea;
-  font-size: 16px;
+  font-size: 15px;
+  gap: 12px;
 }
 
+.btn-danger-sm,
 .setting-row button {
-  border: 0;
-  background: none;
-  color: #ac6d66;
-  font: 13px 'DM Mono';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fdf2f0;
+  color: #b83a2e;
+  border: 1px solid #f8d4ce;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  box-shadow: 0 1px 2px rgba(184, 58, 46, 0.05);
+  white-space: nowrap;
+  user-select: none;
+  line-height: 1.2;
+}
+
+.btn-danger-sm:hover,
+.setting-row button:hover {
+  background: #fbe3df;
+  border-color: #f1bcb2;
+  color: #94271c;
+  box-shadow: 0 2px 5px rgba(184, 58, 46, 0.1);
+}
+
+.btn-danger-sm:active,
+.setting-row button:active {
+  transform: scale(0.96);
 }
 
 .modal-backdrop {
@@ -1135,9 +1231,23 @@ button {
     font-size: 13px;
     padding: 0 2px;
   }
-  .edit, .delete {
+  .btn-action,
+  .edit,
+  .delete,
+  .history-print-btn,
+  .history-delete,
+  .btn-primary-sm,
+  .btn-danger-sm {
     font-size: 11px;
-    padding: 5px 9px;
+    padding: 5px 10px;
+  }
+  .history-card-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .history-actions {
+    justify-content: flex-end;
   }
   .buy-banner {
     align-items: stretch;
