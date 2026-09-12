@@ -262,17 +262,11 @@ function App() {
   }
 
   function formatReceiptItem(qty, name, unit, priceStr, lineWidth = 32) {
-    const prefix = `- ${qty}  `;
-    const unitText = unit ? (unit.startsWith('/') ? unit : `/${unit}`) : '-';
     const indent = "     ";
-    const availableForName = lineWidth - prefix.length - priceStr.length - 1;
-    let displayName = name;
-    if (displayName.length > availableForName && availableForName > 5) {
-      displayName = displayName.slice(0, availableForName - 1) + '…';
-    }
-    const spaceCount = Math.max(1, lineWidth - prefix.length - displayName.length - priceStr.length);
-    const line1 = `${prefix}${displayName}${" ".repeat(spaceCount)}${priceStr}\n`;
-    const line2 = `${indent}${unitText}\n`;
+    const unitText = unit ? (unit.startsWith('/') ? unit : `/${unit}`) : '-';
+    const line1 = `- ${qty}  ${name}\n`;
+    const spaceCount = Math.max(2, lineWidth - indent.length - unitText.length - priceStr.length);
+    const line2 = `${indent}${unitText}${" ".repeat(spaceCount)}${priceStr}\n`;
     return line1 + line2;
   }
 
@@ -483,10 +477,10 @@ function App() {
                           <span className="print-item-bullet">-</span>
                           <span className="print-item-qty">{qty}</span>
                           <span className="print-item-name">{item.name}</span>
-                          <span className="print-item-price">{price}</span>
                         </div>
                         <div className="print-item-row-2">
                           <span className="print-item-unit">{unit}</span>
+                          <span className="print-item-price">{price}</span>
                         </div>
                       </div>
                     );
@@ -634,10 +628,10 @@ function App() {
                   <span className="print-item-bullet">-</span>
                   <span className="print-item-qty">{qty}</span>
                   <span className="print-item-name">{item.name}</span>
-                  <span className="print-item-price">{subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'}</span>
                 </div>
                 <div className="print-item-row-2">
                   <span className="print-item-unit">/{item.units?.name || '-'}</span>
+                  <span className="print-item-price">{subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'}</span>
                 </div>
               </div>
             );
