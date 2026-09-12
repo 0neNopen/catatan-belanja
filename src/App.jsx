@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, supabaseConfigured } from './supabase'
 import './styles.css'
 
@@ -23,7 +23,7 @@ function App() {
   const [toast, setToast] = useState('')
   const [dbWaking, setDbWaking] = useState(false)
   const [wakeCountdown, setWakeCountdown] = useState(0)
-  const wakeRetryRef = React.useRef(null)
+  const wakeRetryRef = useRef(null)
   const [quantities, setQuantities] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('cb_item_quantities') || '{}')
