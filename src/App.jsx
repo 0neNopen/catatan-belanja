@@ -614,7 +614,7 @@ export default function App() {
                         const storeName = item.store || item.store_name || ''
                         const storeLabel =
                           includeStoreInPrint && storeName
-                            ? ` · ${storeName.length > 10 ? storeName.slice(0, 9) + '…' : storeName}`
+                            ? ` (${storeName.length > 10 ? storeName.slice(0, 8) + '..' : storeName})`
                             : ''
                         const unit = item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : '-'
                         const subtotal = (Number(item.price) || 0) * qty

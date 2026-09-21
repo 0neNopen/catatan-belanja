@@ -110,7 +110,7 @@ export default function HistoryView({
                             <td>{item.name}</td>
                             <td>
                               {item.store ? (
-                                <span className="history-store-tag">🏬 {item.store}</span>
+                                <span className="history-store-tag">{item.store}</span>
                               ) : (
                                 '—'
                               )}

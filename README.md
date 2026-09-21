@@ -36,44 +36,47 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 - **Format Struk Catatan Belanja (Opsi Cetak Toko Aktif)**:
   ```text
           CATATAN BELANJA
-       Waktu: 21 Sep 2026, 09.30
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  - 2  Botol Minum 600ml
-       /pcs · Toko A      Rp30.000
-  - 1  Botol Minum 600ml
-       /pcs · Toko B      Rp18.000
-  - 5  Beras Ramos 5kg
-       /karung           Rp140.000
-  - 3  Telur Ayam 1kg
-       /kg · Agen Berkah  Rp84.000
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  Total Barang: 11 item
-  Total: Rp272.000
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     Waktu: 21 Sep 2026, 09.30
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- 2 Botol Minum 600ml
+    /pcs (Toko A)      Rp30.000
+- 1 Botol Minum 600ml
+    /pcs (Toko B)      Rp18.000
+- 5 Beras Ramos 5kg
+    /karung           Rp140.000
+- 3 Telur Ayam 1kg
+    /kg (Agen Berkah)  Rp84.000
+- 1 Barang dengan harga
+    terjangkau
+    /dus (Toko Laris)  Rp35.000
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Total Barang: 12 item
+Total: Rp307.000
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ```
 - **Format Struk Riwayat Pembelian (Dikelompokkan per Kategori)**:
   ```text
-         RIWAYAT PEMBELIAN
-       Waktu: 21 Sep 2026, 11.45
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+       RIWAYAT PEMBELIAN
+     Waktu: 21 Sep 2026, 11.45
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  ===> SEMBAKO
-  - 2  Beras Ramos 5kg
-       /karung           Rp140.000
-  - 3  Telur Ayam 1kg
-       /kg · Agen Berkah  Rp84.000
+===> SEMBAKO
+- 5 Beras Ramos 5kg
+    /karung           Rp140.000
+- 3 Telur Ayam 1kg
+    /kg (Agen Berkah)  Rp84.000
 
-  ===> PERABOTAN & PLASTIK
-  - 2  Botol Minum 600ml
-       /pcs · Toko A      Rp30.000
-  - 1  Botol Minum 600ml
-       /pcs · Toko B      Rp18.000
+===> PERABOTAN & PLASTIK
+- 2 Botol Minum 600ml
+    /pcs (Toko A)      Rp30.000
+- 1 Botol Minum 600ml
+    /pcs (Toko B)      Rp18.000
 
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  Total Barang: 8 item
-  Total: Rp272.000
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ```
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Total Barang: 11 item
+Total: Rp272.000
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
 
 ### 5. Banner "Selesai Belanja" & Riwayat Pembelian (Purchase History)
 - **Banner Interaktif**: Desain banner modern dengan kontras tinggi, menampilkan status dinamis jumlah barang yang dipilih, serta tombol yang nyaman ditekan di HP.

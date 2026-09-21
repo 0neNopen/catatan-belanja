@@ -1,8 +1,63 @@
 /**
  * Utilitas Driver Printer Thermal Bluetooth (ESC/POS)
- * Menangani format struk 32 kolom dan transmisi Web Bluetooth GATT
- * Mendukung opsi penyertaan nama toko pada baris ke-2
+ * Menangani format struk 32 kolom ASCII murni dan transmisi Web Bluetooth GATT
+ * Memastikan tidak ada karakter non-ASCII (menghindari simbol aneh & overflow baris)
  */
+
+function wrapItemName(qty, name, lineWidth = 32) {
+  const prefix = `- ${qty} `
+  const maxFirstLine = Math.max(10, lineWidth - prefix.length)
+  const maxNextLine = lineWidth - 4 // indent 4 spasi
+
+  const words = name.trim().split(/\s+/)
+  let firstLine = ''
+  let remainingWordsIndex = 0
+
+  for (let i = 0; i < words.length; i++) {
+    const testLine = firstLine ? `${firstLine} ${words[i]}` : words[i]
+    if (testLine.length <= maxFirstLine) {
+      firstLine = testLine
+      remainingWordsIndex = i + 1
+    } else {
+      break
+    }
+  }
+
+  // Jika kata pertama saja sudah lebih panjang dari batas baris pertama
+  if (!firstLine && words.length > 0) {
+    firstLine = words[0].slice(0, maxFirstLine)
+    words[0] = words[0].slice(maxFirstLine)
+    remainingWordsIndex = 0
+  }
+
+  let result = `${prefix}${firstLine}\n`
+
+  // Baris-baris lanjutan nama barang dengan indent 4 spasi
+  let currentLine = ''
+  for (let i = remainingWordsIndex; i < words.length; i++) {
+    const word = words[i]
+    const testLine = currentLine ? `${currentLine} ${word}` : word
+    if (testLine.length <= maxNextLine) {
+      currentLine = testLine
+    } else {
+      if (currentLine) {
+        result += `    ${currentLine}\n`
+      }
+      if (word.length > maxNextLine) {
+        result += `    ${word.slice(0, maxNextLine)}\n`
+        currentLine = word.slice(maxNextLine)
+      } else {
+        currentLine = word
+      }
+    }
+  }
+
+  if (currentLine) {
+    result += `    ${currentLine}\n`
+  }
+
+  return result
+}
 
 export function formatReceiptItem(
   qty,
@@ -13,18 +68,28 @@ export function formatReceiptItem(
   includeStore = true,
   lineWidth = 32
 ) {
-  const indent = '     '
+  // Baris 1: Nama barang dengan smart word-wrap rapi
+  const line1 = wrapItemName(qty, name, lineWidth)
+
+  // Baris 2: Satuan, Nama Toko (opsional dlm kurung ASCII), dan Harga rata kanan
+  const indent = '    '
   let unitText = unit ? (unit.startsWith('/') ? unit : `/${unit}`) : '-'
 
   if (includeStore && store && store.trim()) {
-    const trimmed = store.trim()
-    const truncatedStore = trimmed.length > 10 ? trimmed.slice(0, 9) + '…' : trimmed
-    unitText += ` · ${truncatedStore}`
+    const cleanStore = store.trim()
+    // Hitung sisa ruang maksimal untuk teks toko agar harga tidak terdorong keluar batas 32 karakter
+    // lineWidth (32) - indent (4) - unitText - priceStr - minSpace (1) - kurung ' ()' (3)
+    const maxStoreLen = Math.max(4, lineWidth - indent.length - unitText.length - priceStr.length - 4)
+    let formattedStore = cleanStore
+    if (cleanStore.length > maxStoreLen) {
+      formattedStore = cleanStore.slice(0, Math.max(1, maxStoreLen - 2)) + '..'
+    }
+    unitText += ` (${formattedStore})`
   }
 
-  const line1 = `- ${qty}  ${name}\n`
-  const spaceCount = Math.max(2, lineWidth - indent.length - unitText.length - priceStr.length)
+  const spaceCount = Math.max(1, lineWidth - indent.length - unitText.length - priceStr.length)
   const line2 = `${indent}${unitText}${' '.repeat(spaceCount)}${priceStr}\n`
+
   return line1 + line2
 }
 

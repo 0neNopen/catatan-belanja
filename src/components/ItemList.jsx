@@ -169,7 +169,7 @@ export default function ItemList({
                     {item.store_name && (
                       <>
                         <span className="item-sep">·</span>
-                        <span className="item-store">🏬 {item.store_name}</span>
+                        <span className="item-store">{item.store_name}</span>
                       </>
                     )}
                   </div>
@@ -284,7 +284,7 @@ export default function ItemList({
           const subtotal = unitPrice * qty
           const storeLabel =
             includeStoreInPrint && item.store_name
-              ? ` · ${item.store_name.length > 10 ? item.store_name.slice(0, 9) + '…' : item.store_name}`
+              ? ` (${item.store_name.length > 10 ? item.store_name.slice(0, 8) + '..' : item.store_name})`
               : ''
           return (
             <div key={item.id} className="print-item-block">
