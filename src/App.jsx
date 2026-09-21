@@ -2,20 +2,35 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, supabaseConfigured } from './supabase'
 import './styles.css'
 
-const empty = { categories: [], units: [], items: [], history: [] }
+import TopBar from './components/TopBar'
+import ItemList from './components/ItemList'
+import HistoryView from './components/HistoryView'
+import SettingsView from './components/SettingsView'
+import AuthScreen from './components/AuthScreen'
+import { Notice, DbWakingScreen } from './components/Notice'
 
-function App() {
+import ItemModal from './components/modals/ItemModal'
+import PromptModal from './components/modals/PromptModal'
+import PrintFallbackModal from './components/modals/PrintFallbackModal'
+import BluetoothGuideModal from './components/modals/BluetoothGuideModal'
+import ConfirmExitModal from './components/modals/ConfirmExitModal'
+
+import { printReceiptBluetooth } from './utils/bluetoothPrinter'
+
+const emptyData = { categories: [], units: [], items: [], history: [] }
+const ITEMS_PER_PAGE = 10
+
+export default function App() {
   const [session, setSession] = useState(null)
-  const [data, setData] = useState(empty)
+  const [data, setData] = useState(emptyData)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [view, setView] = useState('list')
   const [category, setCategory] = useState('Semua')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
   const [modal, setModal] = useState(null)
-  const [draft, setDraft] = useState({ name: '', categoryId: '', unitId: '' })
+  const [draft, setDraft] = useState({ name: '', store_name: '', categoryId: '', unitId: '', price: '' })
   const [historyFilter, setHistoryFilter] = useState('all')
   const [expandedHistory, setExpandedHistory] = useState(null)
   const [printHistoryId, setPrintHistoryId] = useState(null)
@@ -24,6 +39,34 @@ function App() {
   const [dbWaking, setDbWaking] = useState(false)
   const [wakeCountdown, setWakeCountdown] = useState(0)
   const wakeRetryRef = useRef(null)
+
+  // Opsi Cetak Fleksibel (Toko di Struk)
+  const [includeStoreInPrint, setIncludeStoreInPrint] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cb_print_include_store')
+      return saved !== null ? JSON.parse(saved) : true
+    } catch {
+      return true
+    }
+  })
+
+  function handleToggleIncludeStore(val) {
+    setIncludeStoreInPrint(val)
+    try {
+      localStorage.setItem('cb_print_include_store', JSON.stringify(val))
+    } catch {}
+  }
+
+  // Modal Kustom Kategori & Satuan
+  const [promptConfig, setPromptConfig] = useState({
+    isOpen: false,
+    table: '',
+    label: '',
+    title: '',
+    placeholder: '',
+  })
+
+  // Manajemen Quantity (Hybrid Cloud + LocalStorage)
   const [quantities, setQuantities] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('cb_item_quantities') || '{}')
@@ -32,38 +75,94 @@ function App() {
     }
   })
 
+  useEffect(() => {
+    if (data.items && data.items.length) {
+      setQuantities((prev) => {
+        let changed = false
+        const next = { ...prev }
+        data.items.forEach((it) => {
+          if (it.quantity !== undefined && it.quantity !== null && it.quantity > 0) {
+            if (next[it.id] !== it.quantity) {
+              next[it.id] = it.quantity
+              changed = true
+            }
+          }
+        })
+        if (changed) {
+          try {
+            localStorage.setItem('cb_item_quantities', JSON.stringify(next))
+          } catch {}
+          return next
+        }
+        return prev
+      })
+    }
+  }, [data.items])
+
   function getQty(id) {
     return quantities[id] || 1
   }
 
-  function changeQty(id, delta) {
+  async function changeQty(id, delta) {
+    const current = quantities[id] || 1
+    const nextVal = Math.max(1, current + delta)
     setQuantities((prev) => {
-      const current = prev[id] || 1
-      const nextVal = Math.max(1, current + delta)
       const updated = { ...prev, [id]: nextVal }
-      try { localStorage.setItem('cb_item_quantities', JSON.stringify(updated)) } catch {}
+      try {
+        localStorage.setItem('cb_item_quantities', JSON.stringify(updated))
+      } catch {}
       return updated
     })
+
+    try {
+      await supabase.from('items').update({ quantity: nextVal }).eq('id', id)
+    } catch {
+      // Fallback lokal aman
+    }
   }
 
+  // Back-Button Navigation Guard
   const allowExitRef = useRef(false)
   const modalRef = useRef(modal)
+  const promptOpenRef = useRef(promptConfig.isOpen)
   const viewRef = useRef(view)
   const expandedHistoryRef = useRef(expandedHistory)
 
-  useEffect(() => { modalRef.current = modal }, [modal])
-  useEffect(() => { viewRef.current = view }, [view])
-  useEffect(() => { expandedHistoryRef.current = expandedHistory }, [expandedHistory])
+  useEffect(() => {
+    modalRef.current = modal
+  }, [modal])
+  useEffect(() => {
+    promptOpenRef.current = promptConfig.isOpen
+  }, [promptConfig.isOpen])
+  useEffect(() => {
+    viewRef.current = view
+  }, [view])
+  useEffect(() => {
+    expandedHistoryRef.current = expandedHistory
+  }, [expandedHistory])
 
   useEffect(() => {
     if (!supabase) return setLoading(false)
     let active = true
-    supabase.auth.getSession().then(({ data: result }) => { if (active) { setSession(result.session); setLoading(false) } })
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => { setSession(next); setLoading(false) })
-    return () => { active = false; listener.subscription.unsubscribe() }
+    supabase.auth.getSession().then(({ data: result }) => {
+      if (active) {
+        setSession(result.session)
+        setLoading(false)
+      }
+    })
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next)
+      setLoading(false)
+    })
+    return () => {
+      active = false
+      listener.subscription.unsubscribe()
+    }
   }, [])
 
-  useEffect(() => { if (session) loadData() }, [session])
+  useEffect(() => {
+    if (session) loadData()
+  }, [session])
 
   useEffect(() => {
     if (!session) return
@@ -76,6 +175,12 @@ function App() {
 
     const handlePopState = () => {
       if (allowExitRef.current) return
+
+      if (promptOpenRef.current) {
+        setPromptConfig((p) => ({ ...p, isOpen: false }))
+        window.history.pushState({ app: 'catatan-belanja' }, '', window.location.href)
+        return
+      }
 
       if (modalRef.current) {
         setModal(null)
@@ -111,11 +216,45 @@ function App() {
     window.history.go(-2)
   }
 
+  // Realtime Channel dengan Debounce
   useEffect(() => {
     if (!session || !supabase) return
-    const refresh = () => loadData()
-    const channel = supabase.channel('catatan-belanja-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `user_id=eq.${session.user.id}` }, refresh).on('postgres_changes', { event: '*', schema: 'public', table: 'units', filter: `user_id=eq.${session.user.id}` }, refresh).on('postgres_changes', { event: '*', schema: 'public', table: 'items', filter: `user_id=eq.${session.user.id}` }, refresh).on('postgres_changes', { event: '*', schema: 'public', table: 'purchase_history', filter: `user_id=eq.${session.user.id}` }, refresh).subscribe()
-    return () => { supabase.removeChannel(channel) }
+    let debounceTimer = null
+    const debouncedRefresh = () => {
+      clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        loadData()
+      }, 350)
+    }
+
+    const channel = supabase
+      .channel('catatan-belanja-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories', filter: `user_id=eq.${session.user.id}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'units', filter: `user_id=eq.${session.user.id}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'items', filter: `user_id=eq.${session.user.id}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'purchase_history', filter: `user_id=eq.${session.user.id}` },
+        debouncedRefresh
+      )
+      .subscribe()
+
+    return () => {
+      clearTimeout(debounceTimer)
+      supabase.removeChannel(channel)
+    }
   }, [session])
 
   async function loadData({ isRetry = false } = {}) {
@@ -123,23 +262,30 @@ function App() {
     const [categories, units, items, history] = await Promise.all([
       supabase.from('categories').select('*').order('created_at', { ascending: false }),
       supabase.from('units').select('*').order('created_at', { ascending: false }),
-      supabase.from('items').select('*, categories(name), units(name)').order('is_selected', { ascending: false }).order('id', { ascending: false }),
+      supabase
+        .from('items')
+        .select('*, categories(name), units(name)')
+        .order('is_selected', { ascending: false })
+        .order('id', { ascending: false }),
       supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }).limit(30),
     ])
+
     const failure = [categories, units, items, history].find((result) => result.error)
     if (failure) {
-      // Deteksi apakah ini kemungkinan Supabase sedang resume dari pause
-      const isDbWaking = !isRetry &&
+      const isDbWaking =
+        !isRetry &&
         (failure.error.message?.toLowerCase().includes('fetch') ||
-         failure.error.message?.toLowerCase().includes('network') ||
-         failure.error.message?.toLowerCase().includes('failed') ||
-         failure.error.code === 'PGRST301' ||
-         failure.error.status === 503 ||
-         failure.error.status === 0)
+          failure.error.message?.toLowerCase().includes('network') ||
+          failure.error.message?.toLowerCase().includes('failed') ||
+          failure.error.code === 'PGRST301' ||
+          failure.error.status === 503 ||
+          failure.error.status === 0)
+
       if (isDbWaking) {
         setDbWaking(true)
         let attempts = 0
-        const maxAttempts = 12 // 12 × 5 detik = 1 menit
+        const maxAttempts = 12
+
         function scheduleRetry() {
           attempts++
           if (attempts > maxAttempts) {
@@ -154,11 +300,16 @@ function App() {
             setWakeCountdown(countdown)
             if (countdown <= 0) window.clearInterval(tick)
           }, 1000)
+
           wakeRetryRef.current = window.setTimeout(async () => {
             const [c, u, i, h] = await Promise.all([
               supabase.from('categories').select('*').order('created_at', { ascending: false }),
               supabase.from('units').select('*').order('created_at', { ascending: false }),
-              supabase.from('items').select('*, categories(name), units(name)').order('is_selected', { ascending: false }).order('id', { ascending: false }),
+              supabase
+                .from('items')
+                .select('*, categories(name), units(name)')
+                .order('is_selected', { ascending: false })
+                .order('id', { ascending: false }),
               supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }).limit(30),
             ])
             const retryFailure = [c, u, i, h].find((r) => r.error)
@@ -171,18 +322,47 @@ function App() {
             }
           }, 5000)
         }
+
         scheduleRetry()
         return
       }
       return setError(failure.error.message)
     }
+
     setDbWaking(false)
     setData({ categories: categories.data, units: units.data, items: items.data, history: history.data })
   }
 
-  async function run(action) { setError(''); const { error: result } = await action(); if (result) setError(result.message); else await loadData() }
-  const categories = ['Semua', ...data.categories.map((item) => item.name)]
-  const visibleItems = useMemo(() => data.items.filter((item) => (category === 'Semua' || item.categories?.name === category) && item.name.toLowerCase().includes(query.toLowerCase())), [data.items, category, query])
+  async function run(action) {
+    setError('')
+    const { error: result } = await action()
+    if (result) {
+      setError(result.message)
+    } else {
+      await loadData()
+    }
+  }
+
+  const categoryNames = ['Semua', ...data.categories.map((item) => item.name)]
+
+  // Saran Nama Toko dari data yang sudah ada
+  const storeSuggestions = useMemo(() => {
+    const stores = data.items.map((i) => i.store_name?.trim()).filter(Boolean)
+    return [...new Set(stores)].sort()
+  }, [data.items])
+
+  const visibleItems = useMemo(
+    () =>
+      data.items.filter((item) => {
+        const matchCategory = category === 'Semua' || item.categories?.name === category
+        const q = query.toLowerCase()
+        const matchQuery =
+          item.name.toLowerCase().includes(q) ||
+          (item.store_name && item.store_name.toLowerCase().includes(q))
+        return matchCategory && matchQuery
+      }),
+    [data.items, category, query]
+  )
   const selected = data.items.filter((item) => item.is_selected)
 
   useEffect(() => {
@@ -198,6 +378,7 @@ function App() {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
   }, [totalPages, page])
+
   const filteredHistory = useMemo(() => {
     const now = new Date()
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -206,773 +387,433 @@ function App() {
     return data.history.filter((entry) => {
       if (historyFilter === 'all') return true
       const date = new Date(entry.purchased_at)
-      return historyFilter === 'today' ? date >= start : date >= start
+      return date >= start
     })
   }, [data.history, historyFilter])
 
+  // Simpan barang dengan penanganan aman kolom store_name
   async function saveItem(event) {
     event.preventDefault()
-    if (!draft.name.trim() || !draft.categoryId || !draft.unitId) return setError('Buat kategori dan satuan sebelum menyimpan barang.')
-    const payload = { name: draft.name.trim(), price: Math.max(0, Math.round(Number(draft.price) || 0)), category_id: draft.categoryId, unit_id: draft.unitId, is_selected: draft.is_selected || false, user_id: session.user.id }
-    await run(() => draft.id ? supabase.from('items').update(payload).eq('id', draft.id) : supabase.from('items').insert(payload))
+    if (!draft.name.trim() || !draft.categoryId || !draft.unitId) {
+      return setError('Buat kategori dan satuan sebelum menyimpan barang.')
+    }
+    const payload = {
+      name: draft.name.trim(),
+      store_name: draft.store_name?.trim() || '',
+      price: Math.max(0, Math.round(Number(draft.price) || 0)),
+      category_id: draft.categoryId,
+      unit_id: draft.unitId,
+      is_selected: draft.is_selected || false,
+      user_id: session.user.id,
+    }
+
+    await run(async () => {
+      const op = draft.id
+        ? supabase.from('items').update(payload).eq('id', draft.id)
+        : supabase.from('items').insert(payload)
+      const res = await op
+      // Fallback jika database belum menjalankan SQL penambahan kolom store_name
+      if (res.error && res.error.message?.includes('store_name')) {
+        const { store_name, ...fallbackPayload } = payload
+        return draft.id
+          ? supabase.from('items').update(fallbackPayload).eq('id', draft.id)
+          : supabase.from('items').insert(fallbackPayload)
+      }
+      return res
+    })
     setModal(null)
   }
-  async function addNamed(table, label) {
-    const name = window.prompt(`Nama ${label} baru`)?.trim()
-    if (name) await run(() => supabase.from(table).insert({ name, user_id: session.user.id }))
+
+  function handleOpenPrompt(table, label) {
+    setPromptConfig({
+      isOpen: true,
+      table,
+      label,
+      title: `Tambah ${label} baru`,
+      placeholder: label === 'kategori' ? 'Contoh: Bumbu Dapur' : 'Contoh: kg, dus, renceng',
+    })
   }
 
+  async function handleConfirmPrompt(name) {
+    setPromptConfig((p) => ({ ...p, isOpen: false }))
+    await run(() => supabase.from(promptConfig.table).insert({ name, user_id: session.user.id }))
+    setToast(`${promptConfig.label} berhasil ditambahkan!`)
+    setTimeout(() => setToast(''), 2200)
+  }
+
+  // Selesai Belanja: Mengabadikan snapshot toko ke purchase_history
   async function markBought() {
     if (!selected.length) return
-    await run(async () => {
-      const history = await supabase.from('purchase_history').insert({
+    setError('')
+    try {
+      const historyPayload = {
         user_id: session.user.id,
         items: selected.map((item) => ({
           name: item.name,
+          store: item.store_name || '',
           price: Number(item.price) || 0,
           quantity: getQty(item.id),
           category: item.categories?.name || 'Tanpa kategori',
-          unit: item.units?.name || '-'
-        }))
-      })
-      if (history.error) return history
+          unit: item.units?.name || '-',
+        })),
+      }
+
+      const historyRes = await supabase.from('purchase_history').insert(historyPayload)
+      if (historyRes.error) {
+        throw new Error(`Gagal menyimpan riwayat: ${historyRes.error.message}`)
+      }
+
+      const updateRes = await supabase
+        .from('items')
+        .update({ is_selected: false })
+        .eq('user_id', session.user.id)
+        .eq('is_selected', true)
+
+      if (updateRes.error) {
+        setToast('Riwayat tersimpan, namun centang barang gagal di-reset otomatis.')
+      } else {
+        setToast('Belanjaan berhasil dipindahkan ke riwayat!')
+      }
+
       setQuantities((prev) => {
         const updated = { ...prev }
         selected.forEach((item) => delete updated[item.id])
-        try { localStorage.setItem('cb_item_quantities', JSON.stringify(updated)) } catch {}
+        try {
+          localStorage.setItem('cb_item_quantities', JSON.stringify(updated))
+        } catch {}
         return updated
       })
-      return supabase.from('items').update({ is_selected: false }).eq('user_id', session.user.id).eq('is_selected', true)
-    })
+
+      await loadData()
+      setTimeout(() => setToast(''), 2500)
+    } catch (err) {
+      console.error('markBought error:', err)
+      setError(err.message || 'Terjadi kesalahan saat memproses selesai belanja.')
+    }
   }
+
   async function toggleItem(item) {
     const next = !item.is_selected
     if (next && !quantities[item.id]) {
       changeQty(item.id, 0)
     }
-    setData((current) => ({ ...current, items: current.items.map((old) => old.id === item.id ? { ...old, is_selected: next } : old) }))
+    setData((current) => ({
+      ...current,
+      items: current.items.map((old) => (old.id === item.id ? { ...old, is_selected: next } : old)),
+    }))
+
     const { error: result } = await supabase.from('items').update({ is_selected: next }).eq('id', item.id)
     if (result) {
-      setData((current) => ({ ...current, items: current.items.map((old) => old.id === item.id ? { ...old, is_selected: !next } : old) }))
+      setData((current) => ({
+        ...current,
+        items: current.items.map((old) => (old.id === item.id ? { ...old, is_selected: !next } : old)),
+      }))
       setToast('Gagal menyimpan checklist. Perubahan dibatalkan.')
     } else {
       setToast('Checklist tersimpan')
     }
-    window.setTimeout(() => setToast(''), 2200)
-  }
-
-  function formatReceiptItem(qty, name, unit, priceStr, lineWidth = 32) {
-    const indent = "     ";
-    const unitText = unit ? (unit.startsWith('/') ? unit : `/${unit}`) : '-';
-    const line1 = `- ${qty}  ${name}\n`;
-    const spaceCount = Math.max(2, lineWidth - indent.length - unitText.length - priceStr.length);
-    const line2 = `${indent}${unitText}${" ".repeat(spaceCount)}${priceStr}\n`;
-    return line1 + line2;
+    window.setTimeout(() => setToast(''), 2000)
   }
 
   async function printReceipt(type, entry = null) {
-    if (!navigator.bluetooth) {
-      setPendingPrint({
-        type,
-        entry,
-        error: 'Browser pada perangkat ini (misal iOS Safari) tidak mendukung koneksi Bluetooth langsung.'
-      });
-      setModal('print-error-fallback');
-      return;
-    }
-
-    const now = new Date();
-    const printTimeStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-    let text = "\x1B\x40"; // Init printer
-    text += "\x1B\x61\x01"; // Align center
-    text += type === 'history' ? "RIWAYAT PEMBELIAN\n" : "CATATAN BELANJA\n";
-    text += `Waktu: ${printTimeStr}\n`;
-    text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-    text += "\x1B\x61\x00"; // Align left
-
-    let total = 0;
-    const itemsToPrint = type === 'active' ? selected : entry?.items || [];
-
-    if (itemsToPrint.length === 0) {
-      setToast('Tidak ada barang untuk dicetak.');
-      window.setTimeout(() => setToast(''), 3000);
-      return;
-    }
-
-    if (type === 'active') {
-      itemsToPrint.forEach(item => {
-        const qty = getQty(item.id);
-        const unit = item.units?.name || item.unit || '-';
-        const unitPrice = Number(item.price) || 0;
-        const subtotal = unitPrice * qty;
-        const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
-        text += formatReceiptItem(qty, item.name, unit, priceStr, 32);
-        total += subtotal;
-      });
-    } else {
-      const grouped = itemsToPrint.reduce((acc, item) => {
-        const cat = item.category || 'Tanpa kategori';
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(item);
-        return acc;
-      }, {});
-
-      Object.entries(grouped).forEach(([catName, groupItems], groupIndex) => {
-        if (groupIndex > 0) text += "\n";
-        text += `===> ${catName.toUpperCase()}\n`;
-        groupItems.forEach(item => {
-          const qty = item.quantity || 1;
-          const unit = item.unit || (item.units?.name ? item.units.name : '-');
-          const unitPrice = Number(item.price) || 0;
-          const subtotal = unitPrice * qty;
-          const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
-          text += formatReceiptItem(qty, item.name, unit, priceStr, 32);
-          total += subtotal;
-        });
-      });
-    }
-
-    const totalQty = itemsToPrint.reduce((sum, item) => sum + (type === 'active' ? getQty(item.id) : (item.quantity || 1)), 0);
-
-    text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-    text += `Total Barang: ${totalQty} item\n`;
-    text += `Total: Rp${total.toLocaleString('id-ID')}\n`;
-    text += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-    text += "\n\n\n";
-
-    let device = null;
     try {
-      setToast('Pilih printer Bluetooth Anda...');
-      device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: [
-          '000018f0-0000-1000-8000-00805f9b34fb', // Standard thermal printer service
-          'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-          '49535343-fe7d-4ae5-8fa9-9fafd205e455' // Serial Port Profile
-        ]
-      });
-
-      setToast('Menghubungkan ke printer...');
-      const server = await device.gatt.connect();
-      const services = await server.getPrimaryServices();
-      let printCharacteristic = null;
-
-      for (const service of services) {
-        const characteristics = await service.getCharacteristics();
-        for (const char of characteristics) {
-          if (char.properties.write || char.properties.writeWithoutResponse) {
-            printCharacteristic = char;
-            break;
-          }
-        }
-        if (printCharacteristic) break;
-      }
-
-      if (!printCharacteristic) {
-        throw new Error('Karakteristik write tidak ditemukan pada printer ini.');
-      }
-
-      const encoder = new TextEncoder();
-      const data = encoder.encode(text);
-      const chunkSize = 512;
-
-      for (let i = 0; i < data.length; i += chunkSize) {
-        const chunk = data.slice(i, i + chunkSize);
-        if (printCharacteristic.properties.write) {
-          await printCharacteristic.writeValue(chunk);
-        } else {
-          await printCharacteristic.writeValueWithoutResponse(chunk);
-        }
-      }
-
-      setToast('Berhasil mencetak struk!');
-      window.setTimeout(() => {
-        if (device.gatt.connected) device.gatt.disconnect();
-        setToast('');
-      }, 2500);
-
+      await printReceiptBluetooth({
+        type,
+        items: selected,
+        entry,
+        getQty,
+        includeStore: includeStoreInPrint,
+        onStatus: (msg) => {
+          setToast(msg)
+          setTimeout(() => setToast(''), 3000)
+        },
+      })
     } catch (err) {
-      console.error('Bluetooth Print Error:', err);
-      if (device && device.gatt && device.gatt.connected) {
-        try { device.gatt.disconnect(); } catch {}
-      }
-      const isCancelled = err.name === 'NotFoundError';
+      console.warn('Bluetooth Print Error:', err)
+      const isCancelled = err.name === 'NotFoundError'
       setPendingPrint({
         type,
         entry,
-        error: isCancelled ? 'Pencarian/koneksi Bluetooth tidak dipilih.' : err.message
-      });
-      setModal('print-error-fallback');
+        error: isCancelled ? 'Pencarian/koneksi Bluetooth dibatalkan.' : err.message,
+      })
+      setModal('print-error-fallback')
     }
   }
 
   function doFallbackPrint(type, entry) {
-    setModal(null);
+    setModal(null)
     if (type === 'history' && entry) {
-      setPrintHistoryId(entry.id);
+      setPrintHistoryId(entry.id)
       window.setTimeout(() => {
-        window.print();
-        setPrintHistoryId(null);
-      }, 150);
+        window.print()
+        setPrintHistoryId(null)
+      }, 150)
     } else {
-      window.print();
+      window.print()
     }
   }
 
-  if (!supabaseConfigured) return <Notice title="Supabase belum dikonfigurasi">Tambahkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` pada `.env.local`.</Notice>
-  if (loading) return <Notice title="Memuat Catatan Belanja...">Menghubungkan ke Supabase.</Notice>
-  if (dbWaking) return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <img src="/favicon.svg" alt="Logo" className="brand-mark" />
-        <p className="eyebrow">CATATAN STOK WARUNG</p>
-        <h1>Membangunkan<br /><em>database...</em></h1>
-        <p style={{ lineHeight: '1.6', color: 'var(--muted)', fontSize: '14px' }}>
-          Database sedang aktif kembali setelah beberapa hari tidak digunakan.
-          Ini hanya terjadi sekali dan biasanya selesai dalam <strong>30–60 detik</strong>.
-        </p>
-        <div style={{ marginTop: '16px', padding: '12px 16px', background: 'var(--surface)', borderRadius: '8px', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '20px', animation: 'spin 1.2s linear infinite', display: 'inline-block' }}>⟳</span>
-          <span style={{ fontSize: '13px', color: 'var(--ink)' }}>
-            {wakeCountdown > 0 ? `Mencoba ulang dalam ${wakeCountdown} detik...` : 'Menghubungkan...'}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
+  if (!supabaseConfigured) {
+    return (
+      <Notice title="Supabase belum dikonfigurasi">
+        Tambahkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` pada `.env.local`.
+      </Notice>
+    )
+  }
 
-  if (!session) return <Auth />
+  if (loading) {
+    return <Notice title="Memuat Catatan Belanja...">Menghubungkan ke Supabase.</Notice>
+  }
 
-  return <div className={`app-shell ${printHistoryId ? 'is-printing-history' : ''}`}>
-    <header className="topbar"><div className="brand"><img src="/favicon.svg" alt="Logo" className="brand-mark" /><span>Catatan<br /><b>Belanja</b></span></div><div className="sync"><span className="sync-dot" /> Tersinkron cloud <span className="sync-note">· {session.user.email}</span></div><button className="nav-logout" aria-label="Keluar dari akun" onClick={() => supabase.auth.signOut()}>Keluar</button></header>
-    {printHistoryId && (
-      <div className="history-print-view">
-        {(() => {
-          const entry = data.history.find(e => e.id === printHistoryId);
-          if (!entry) return null;
-          const grouped = entry.items.reduce((acc, item) => {
-            const cat = item.category || 'Tanpa kategori';
-            if (!acc[cat]) acc[cat] = [];
-            acc[cat].push(item);
-            return acc;
-          }, {});
-          const historyTotal = entry.items.reduce((sum, item) => sum + ((Number(item.price) || 0) * (item.quantity || 1)), 0);
-          const now = new Date();
-          const printTime = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-          return <>
-            <div className="print-header-center">
-              <div className="print-title">RIWAYAT PEMBELIAN</div>
-              <div className="print-time">Waktu: {printTime}</div>
-              <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
-            </div>
-            {Object.entries(grouped).map(([category, items]) => (
-              <div key={category} className="print-category-group">
-                <div className="print-category-title">{"===>"} {category.toUpperCase()}</div>
-                <div className="print-items-list">
-                  {items.map((item, idx) => {
-                    const qty = item.quantity || 1;
-                    const unit = item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : '-';
-                    const subtotal = (Number(item.price) || 0) * qty;
-                    const price = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0';
-                    return (
-                      <div key={idx} className="print-item-block">
-                        <div className="print-item-row-1">
-                          <span className="print-item-bullet">-</span>
-                          <span className="print-item-qty">{qty}</span>
-                          <span className="print-item-name">{item.name}</span>
-                        </div>
-                        <div className="print-item-row-2">
-                          <span className="print-item-unit">{unit}</span>
-                          <span className="print-item-price">{price}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
-            <div className="print-qty-summary">Total Barang: {entry.items.reduce((sum, item) => sum + (item.quantity || 1), 0)} item</div>
-            <div className="print-total">Total: Rp{historyTotal.toLocaleString('id-ID')}</div>
-            <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
-          </>
-        })()}
-      </div>
-    )}
-    <main>
-      <section className="intro"><div><p className="eyebrow">CATATAN STOK WARUNG</p><h1>Belanja tanpa<br /><em>lupa.</em></h1><p className="lede">Pilih yang perlu dibawa, cetak daftar, lalu lanjutkan jualan.</p></div><div className="date-stamp"><span>DAFTAR AKTIF</span><strong>{selected.length}</strong><small>barang dipilih</small></div></section>
-      {error && <div className="error" role="alert">{error}</div>}
-      <nav className="tabs" aria-label="Navigasi utama"><button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>Daftar barang <span>{data.items.length}</span></button><button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>Riwayat <span>{data.history.length}</span></button><button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}>Pengaturan</button></nav>
-      {view === 'list' && <>
-        <div className="print-active-header print-only">
-          <div className="print-title">CATATAN BELANJA</div>
-          <div className="print-time">Waktu: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}, {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
-          <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
-        </div>
-        <section className="toolbar"><label className="search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari barang..." /></label><button className="primary" disabled={!data.categories.length || !data.units.length} onClick={() => { setDraft({ name: '', categoryId: data.categories[0]?.id || '', unitId: data.units[0]?.id || '' }); setModal('item') }}>+ Tambah barang</button></section>
-        {(!data.categories.length || !data.units.length) && (
-          <div style={{ background: '#eef4e8', border: '1px solid #cce2c3', borderRadius: '8px', padding: '12px 16px', margin: '0 0 16px', fontSize: '13px', color: 'var(--green)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>💡 Belum ada kategori atau satuan. Tambahkan di menu <strong>Pengaturan</strong> untuk mulai menambah barang.</span>
-            <button onClick={() => setView('settings')} style={{ background: 'var(--green)', color: 'white', border: 0, padding: '6px 12px', borderRadius: '6px', font: '12px "Plus Jakarta Sans"', cursor: 'pointer', marginLeft: '12px', flexShrink: 0 }}>Ke Pengaturan</button>
-          </div>
-        )}
-        <div className="category-row">{categories.map((item) => <button key={item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
-        <section className="list-head">
-          <span>
-            {visibleItems.length > ITEMS_PER_PAGE
-              ? `Menampilkan ${(page - 1) * ITEMS_PER_PAGE + 1}–${Math.min(page * ITEMS_PER_PAGE, visibleItems.length)} dari ${visibleItems.length} barang`
-              : `${visibleItems.length} barang`}
-          </span>
-          <button onClick={() => printReceipt('active')}>Cetak terpilih <span className="print-icon">↗</span></button>
-        </section>
-        <section className="items screen-only" aria-label="Daftar barang">
-          {paginatedItems.length ? paginatedItems.map((item) => {
-            const qty = getQty(item.id);
-            const unitPrice = Number(item.price) || 0;
-            const subtotal = unitPrice * qty;
+  if (dbWaking) {
+    return <DbWakingScreen wakeCountdown={wakeCountdown} />
+  }
+
+  if (!session) {
+    return <AuthScreen />
+  }
+
+  return (
+    <div className={`app-shell ${printHistoryId ? 'is-printing-history' : ''}`}>
+      <TopBar session={session} />
+
+      {printHistoryId && (
+        <div className="history-print-view">
+          {(() => {
+            const entry = data.history.find((e) => e.id === printHistoryId)
+            if (!entry) return null
+            const grouped = entry.items.reduce((acc, item) => {
+              const cat = item.category || 'Tanpa kategori'
+              if (!acc[cat]) acc[cat] = []
+              acc[cat].push(item)
+              return acc
+            }, {})
+            const historyTotal = entry.items.reduce(
+              (sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1),
+              0
+            )
+            const now = new Date()
+            const printTime =
+              now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) +
+              ', ' +
+              now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+
             return (
-              <article className={`item ${item.is_selected ? 'is-checked' : ''}`} key={item.id}>
-                <button className="check" onClick={() => toggleItem(item)} aria-label={`Pilih ${item.name}`}>{item.is_selected ? '✓' : ''}</button>
-                <div className="item-info">
-                  <div className="item-title-row">
-                    <strong className="item-name">{item.name}</strong>
-                    {unitPrice > 0 && (
-                      <span className="item-price">
-                        Rp{unitPrice.toLocaleString('id-ID')}
-                        {item.is_selected && qty > 1 && (
-                          <span className="item-subtotal"> (Total: Rp{subtotal.toLocaleString('id-ID')})</span>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                  <div className="item-meta">
-                    <span className="item-cat">{item.categories?.name}</span>
-                    <span className="item-sep">·</span>
-                    <span className="item-unit">/{item.units?.name}</span>
-                  </div>
-                </div>
-                <div className="item-actions">
-                  {item.is_selected ? (
-                    <div className="qty-control" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="qty-btn"
-                        onClick={() => changeQty(item.id, -1)}
-                        aria-label={`Kurangi ${item.name}`}
-                      >−</button>
-                      <span className="qty-value">{qty}</span>
-                      <button
-                        type="button"
-                        className="qty-btn"
-                        onClick={() => changeQty(item.id, 1)}
-                        aria-label={`Tambah ${item.name}`}
-                      >+</button>
-                    </div>
-                  ) : (
-                    <>
-                      <button className="btn-action btn-secondary edit" onClick={() => { setDraft({ ...item, categoryId: item.category_id, unitId: item.unit_id }); setModal('item') }}>Edit</button>
-                      <button className="btn-action btn-danger delete" onClick={() => window.confirm(`Hapus barang "${item.name}"?`) && run(() => supabase.from('items').delete().eq('id', item.id))} aria-label={`Hapus ${item.name}`}>Hapus</button>
-                    </>
-                  )}
-                </div>
-              </article>
-            );
-          }) : <div className="empty"><strong>Belum ada barang.</strong><span>Tambah barang untuk mulai membuat daftar belanja.</span></div>}
-        </section>
-
-        {totalPages > 1 && (
-          <nav className="pagination screen-only" aria-label="Navigasi halaman">
-            <button 
-              className="page-btn page-prev" 
-              onClick={() => setPage((p) => Math.max(1, p - 1))} 
-              disabled={page === 1}
-              aria-label="Halaman sebelumnya"
-            >
-              ‹ Prev
-            </button>
-            <div className="page-numbers">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-                if (
-                  totalPages <= 7 ||
-                  p === 1 ||
-                  p === totalPages ||
-                  Math.abs(p - page) <= 1
-                ) {
-                  return (
-                    <button
-                      key={p}
-                      className={`page-num ${page === p ? 'active' : ''}`}
-                      onClick={() => setPage(p)}
-                      aria-label={`Halaman ${p}`}
-                      aria-current={page === p ? 'page' : undefined}
-                    >
-                      {p}
-                    </button>
-                  );
-                } else if ((p === 2 && page > 3) || (p === totalPages - 1 && page < totalPages - 2)) {
-                  return <span key={`dots-${p}`} className="page-dots">…</span>;
-                }
-                return null;
-              })}
-            </div>
-            <button 
-              className="page-btn page-next" 
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))} 
-              disabled={page === totalPages}
-              aria-label="Halaman selanjutnya"
-            >
-              Next ›
-            </button>
-          </nav>
-        )}
-
-        <div className="print-active-items print-only">
-          {selected.map((item) => {
-            const qty = getQty(item.id);
-            const unitPrice = Number(item.price) || 0;
-            const subtotal = unitPrice * qty;
-            return (
-              <div key={item.id} className="print-item-block">
-                <div className="print-item-row-1">
-                  <span className="print-item-bullet">-</span>
-                  <span className="print-item-qty">{qty}</span>
-                  <span className="print-item-name">{item.name}</span>
-                </div>
-                <div className="print-item-row-2">
-                  <span className="print-item-unit">/{item.units?.name || '-'}</span>
-                  <span className="print-item-price">{subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="print-active-footer print-only">
-          <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
-          <div className="print-qty-summary">Total Barang: {selected.reduce((sum, item) => sum + getQty(item.id), 0)} item</div>
-          <div className="print-total">Total: Rp{selected.reduce((sum, item) => sum + ((Number(item.price) || 0) * getQty(item.id)), 0).toLocaleString('id-ID')}</div>
-          <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
-        </div>
-
-        <section className="buy-banner screen-only">
-          <div className="buy-banner-info">
-            <span className="buy-banner-eyebrow">SELESAI BELANJA?</span>
-            <h3 className="buy-banner-title">
-              {selected.length > 0 ? (
-                <>Tandai <strong>{selected.length} barang</strong> sudah dibeli</>
-              ) : (
-                'Tandai barang belanjaan sudah dibeli'
-              )}
-            </h3>
-            <p className="buy-banner-desc">
-              Barang yang dipilih akan dipindahkan ke arsip riwayat pembelian.
-            </p>
-          </div>
-          <button 
-            className="buy-banner-btn" 
-            onClick={markBought} 
-            disabled={!selected.length}
-          >
-            <span>Masukkan ke riwayat</span>
-            {selected.length > 0 && <span className="buy-badge">{selected.length}</span>}
-            <span className="buy-arrow">→</span>
-          </button>
-        </section>
-      </>}
-      {view === 'history' && <section className="history"><div className="section-title"><div><p className="eyebrow">ARSIP BELANJA</p><h2>Riwayat pembelian</h2></div><span>{filteredHistory.length} daftar</span></div><div className="history-filters"><button className={historyFilter === 'all' ? 'selected' : ''} onClick={() => setHistoryFilter('all')}>Semua</button><button className={historyFilter === 'today' ? 'selected' : ''} onClick={() => setHistoryFilter('today')}>Hari ini</button><button className={historyFilter === '7d' ? 'selected' : ''} onClick={() => setHistoryFilter('7d')}>7 hari</button><button className={historyFilter === 'month' ? 'selected' : ''} onClick={() => setHistoryFilter('month')}>Bulan ini</button></div>{filteredHistory.length ? filteredHistory.map((entry) => { const entryTotal = entry.items.reduce((sum, item) => sum + ((Number(item.price) || 0) * (item.quantity || 1)), 0); return <article className="history-card" key={entry.id}><div className="history-card-head"><button className="history-toggle" onClick={() => setExpandedHistory(expandedHistory === entry.id ? null : entry.id)}><strong>{new Date(entry.purchased_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</strong><span>{entry.items.length} barang dibeli · Total Rp{entryTotal.toLocaleString('id-ID')} · {expandedHistory === entry.id ? 'Tutup' : 'Lihat detail'}</span></button><div className="history-actions"><button className="btn-action btn-secondary history-print-btn" onClick={() => printReceipt('history', entry)}>Cetak</button><button className="btn-action btn-danger history-delete" onClick={() => window.confirm('Hapus riwayat pembelian ini?') && run(() => supabase.from('purchase_history').delete().eq('id', entry.id))}>Hapus</button></div></div>{expandedHistory === entry.id && <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Barang</th><th>Kategori</th><th>Satuan</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead><tbody>{entry.items.map((item, index) => { const q = item.quantity || 1; const p = Number(item.price) || 0; return <tr key={`${entry.id}-${index}`}><td>{item.name}</td><td>{item.category || '-'}</td><td>/{item.unit || '-'}</td><td>{q}</td><td>{p ? `Rp${p.toLocaleString('id-ID')}` : '—'}</td><td>{p ? `Rp${(p * q).toLocaleString('id-ID')}` : '—'}</td></tr> })}</tbody><tfoot><tr><td colSpan="5" style={{ fontWeight: 700, textAlign: 'right', paddingRight: '12px' }}>Total</td><td style={{ fontWeight: 700 }}>Rp{entryTotal.toLocaleString('id-ID')}</td></tr></tfoot></table></div>}</article> }) : <div className="empty"><strong>Belum ada riwayat pada waktu ini.</strong><span>Ubah filter atau tandai daftar sebagai sudah dibeli.</span></div>}</section>}
-      {view === 'settings' && <section className="settings"><div className="section-title"><div><p className="eyebrow">ATUR SESUAI WARUNG</p><h2>Kategori & Satuan</h2></div></div><div className="setting-grid"><SettingBlock title="Kategori" items={data.categories} onAdd={() => addNamed('categories', 'kategori')} onDelete={(item) => { if (data.items.some((i) => i.category_id === item.id)) return window.alert('Kategori masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('categories').delete().eq('id', item.id)) }} /><SettingBlock title="Satuan" items={data.units} onAdd={() => addNamed('units', 'satuan')} onDelete={(item) => { if (data.items.some((i) => i.unit_id === item.id)) return window.alert('Satuan masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'); run(() => supabase.from('units').delete().eq('id', item.id)) }} /></div><PasswordSettingBlock /></section>}    </main>
-    {toast && <div className="toast" role="status">{toast}</div>}
-    {modal === 'item' && <div className="modal-backdrop" onMouseDown={() => setModal(null)}><form className="modal" onSubmit={saveItem} onMouseDown={(e) => e.stopPropagation()}><div className="modal-head"><h2>{draft.id ? 'Edit barang' : 'Tambah barang'}</h2><button type="button" onClick={() => setModal(null)}>×</button></div><label>Nama barang<input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Contoh: Beras premium" /></label><label>Harga<input type="number" min="0" step="1" value={draft.price || ''} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="Contoh: 15000" /></label><label>Kategori<select value={draft.categoryId} onChange={(e) => setDraft({ ...draft, categoryId: e.target.value })}>{data.categories.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>Satuan<select value={draft.unitId} onChange={(e) => setDraft({ ...draft, unitId: e.target.value })}>{data.units.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><button className="primary modal-submit">Simpan barang</button></form></div>}
-    {modal === 'bluetooth-guide' && <div className="modal-backdrop" onMouseDown={() => setModal(null)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><div className="modal-head"><h2>Web Bluetooth Belum Aktif</h2><button type="button" onClick={() => setModal(null)}>×</button></div><p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: '1.6', margin: '0 0 12px' }}>Pada <strong>Linux Desktop</strong>, Chrome mematikan Web Bluetooth secara default. Cara mengaktifkannya:</p><ol style={{ fontSize: '13px', paddingLeft: '18px', lineHeight: '1.7', margin: '0 0 16px', color: 'var(--ink)' }}><li>Buka tab baru di Chrome, lalu ketik:<br /><code style={{ background: '#e9ede6', padding: '3px 6px', borderRadius: '4px', font: '11px "DM Mono"', userSelect: 'all' }}>chrome://flags/#enable-web-bluetooth-nightly</code></li><li>Ubah opsi dari <strong>Default</strong> menjadi <strong>Enabled</strong>.</li><li>Klik tombol <strong>Relaunch</strong> di kanan bawah Chrome.</li></ol><p style={{ fontSize: '11px', color: 'var(--muted)', margin: '0 0 18px' }}>*Di HP Android, Windows, & macOS, fitur ini sudah aktif otomatis.</p><button className="primary modal-submit" onClick={() => setModal(null)}>Saya Mengerti</button></div></div>}
-    {modal === 'print-error-fallback' && <div className="modal-backdrop" onMouseDown={() => setModal(null)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><div className="modal-head"><h2>Opsi Pencetakan</h2><button type="button" onClick={() => setModal(null)}>×</button></div><p style={{ fontSize: '13px', color: '#66746d', lineHeight: '1.5', margin: '0 0 10px', background: '#f4f6f2', padding: '10px', borderRadius: '6px' }}>{pendingPrint?.error || 'Koneksi Bluetooth tidak tersedia.'}</p><p style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: '1.6', margin: '0 0 16px' }}>Anda tetap dapat mencetak menggunakan **System Print** (Fitur Cetak HP / AirPrint / Driver Windows).</p><div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}><button className="primary modal-submit" style={{ marginTop: 0 }} onClick={() => doFallbackPrint(pendingPrint?.type, pendingPrint?.entry)}>Cetak via System Print (Biasa)</button><button type="button" style={{ border: '1px solid var(--line)', background: 'transparent', padding: '10px', borderRadius: '6px', font: '12px "Plus Jakarta Sans"', color: 'var(--ink)' }} onClick={() => { setModal(null); printReceipt(pendingPrint?.type, pendingPrint?.entry); }}>Coba Hubungkan Bluetooth Lagi</button></div></div></div>}
-    {modal === 'confirm-exit' && (
-      <div className="modal-backdrop" onMouseDown={() => setModal(null)}>
-        <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-          <div className="modal-head">
-            <h2>Keluar dari Catatan Belanja?</h2>
-            <button type="button" onClick={() => setModal(null)}>×</button>
-          </div>
-          <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: '1.6', margin: '0 0 20px' }}>
-            Apakah Anda yakin ingin meninggalkan aplikasi Catatan Belanja? Data dan daftar belanja Anda tetap tersimpan aman di akun Anda.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button 
-              className="primary modal-submit" 
-              style={{ marginTop: 0 }} 
-              onClick={() => setModal(null)}
-            >
-              Tetap di Aplikasi
-            </button>
-            <button 
-              type="button" 
-              style={{ 
-                border: '1px solid #efc6bd', 
-                background: '#fbe8e4', 
-                color: '#984b43', 
-                padding: '12px', 
-                borderRadius: '6px', 
-                font: '13px "Plus Jakarta Sans"', 
-                fontWeight: 600, 
-                cursor: 'pointer' 
-              }} 
-              onClick={handleConfirmExit}
-            >
-              Ya, Keluar dari Web
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-}
-
-function SettingBlock({ title, items, onAdd, onDelete }) {
-  return (
-    <div className="setting-block">
-      <div className="block-head">
-        <strong>{title}</strong>
-        <button className="btn-action btn-primary-sm" onClick={onAdd}>+ Tambah</button>
-      </div>
-      {items.map((item) => (
-        <div className="setting-row" key={item.id}>
-          <span>{title === 'Satuan' ? '/' : ''}{item.name}</span>
-          <button className="btn-action btn-danger-sm" onClick={() => onDelete(item)} aria-label={`Hapus ${item.name}`}>Hapus</button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function PasswordSettingBlock() {
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState({ text: '', isError: false })
-
-  async function handleSave(e) {
-    e.preventDefault()
-    setMsg({ text: '', isError: false })
-    if (!password) {
-      return setMsg({ text: 'Masukkan kata sandi baru.', isError: true })
-    }
-    if (password.length < 6) {
-      return setMsg({ text: 'Kata sandi minimal 6 karakter.', isError: true })
-    }
-    if (password !== confirm) {
-      return setMsg({ text: 'Konfirmasi kata sandi tidak cocok.', isError: true })
-    }
-    setSaving(true)
-    const { error } = await supabase.auth.updateUser({ password })
-    setSaving(false)
-    if (error) {
-      setMsg({ text: error.message, isError: true })
-    } else {
-      setPassword('')
-      setConfirm('')
-      setMsg({ text: 'Kata sandi berhasil disimpan! Anda sekarang bisa login langsung menggunakan email & kata sandi (tanpa menunggu email).', isError: false })
-    }
-  }
-
-  return (
-    <div className="setting-block" style={{ marginTop: '20px' }}>
-      <div className="block-head">
-        <strong>Kata Sandi Akun</strong>
-        <span style={{ fontSize: '11px', color: 'var(--muted)', font: '11px "DM Mono"' }}>Bebas Limit Email</span>
-      </div>
-      <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: '1.6', margin: '14px 0 16px' }}>
-        Atur kata sandi agar Anda bisa langsung login kapan saja tanpa perlu menunggu tautan email atau terkena batas limit email.
-      </p>
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', font: '12px "DM Mono"', color: 'var(--muted)' }}>
-          Kata Sandi Baru (min. 6 karakter)
-          <input 
-            type="password" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            placeholder="Minimal 6 karakter"
-            style={{ border: '1px solid var(--line)', background: 'white', borderRadius: '6px', padding: '10px 12px', font: '13px "Plus Jakarta Sans"' }}
-          />
-        </label>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', font: '12px "DM Mono"', color: 'var(--muted)' }}>
-          Ulangi Kata Sandi
-          <input 
-            type="password" 
-            value={confirm} 
-            onChange={(e) => setConfirm(e.target.value)} 
-            placeholder="Ketik ulang kata sandi"
-            style={{ border: '1px solid var(--line)', background: 'white', borderRadius: '6px', padding: '10px 12px', font: '13px "Plus Jakarta Sans"' }}
-          />
-        </label>
-        {msg.text && (
-          <div style={{ 
-            fontSize: '12px', 
-            padding: '10px 12px', 
-            borderRadius: '6px', 
-            background: msg.isError ? '#fbe8e4' : '#e8f0df', 
-            color: msg.isError ? '#984b43' : 'var(--green)',
-            border: `1px solid ${msg.isError ? '#efc6bd' : '#c8ddb6'}`
-          }}>
-            {msg.text}
-          </div>
-        )}
-        <button 
-          type="submit" 
-          className="primary" 
-          disabled={saving || !password}
-          style={{ alignSelf: 'flex-start', padding: '10px 18px', marginTop: '4px' }}
-        >
-          {saving ? 'Menyimpan...' : 'Simpan Kata Sandi'}
-        </button>
-      </form>
-    </div>
-  )
-}
-
-function Notice({ title, children }) { return <div className="auth-screen"><div className="auth-card"><img src="/favicon.svg" alt="Logo" className="brand-mark" /><h1>{title}</h1><p>{children}</p></div></div> }
-
-function Auth() {
-  const [authMode, setAuthMode] = useState('password')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [sent, setSent] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-  const [cooldown, setCooldown] = useState(() => Math.max(0, Number(sessionStorage.getItem('otp-cooldown-until') || 0) - Date.now()))
-
-  useEffect(() => {
-    if (!cooldown) return undefined
-    const timer = window.setInterval(() => setCooldown((remaining) => Math.max(0, remaining - 1000)), 1000)
-    return () => window.clearInterval(timer)
-  }, [cooldown])
-
-  async function handlePasswordSubmit(event) {
-    event.preventDefault()
-    setError('')
-    setSubmitting(true)
-    const { error: result } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password: password
-    })
-    setSubmitting(false)
-    if (result) {
-      if (result.message?.toLowerCase().includes('invalid login credentials')) {
-        setError('Email atau kata sandi tidak cocok. Jika belum pernah membuat kata sandi, masuk lewat tab "Tautan Email" terlebih dahulu, lalu buat kata sandi di Pengaturan.')
-      } else {
-        setError(result.message)
-      }
-    }
-  }
-
-  async function handleOtpSubmit(event) {
-    event.preventDefault()
-    if (cooldown > 0) return
-    setError('')
-    setSubmitting(true)
-    const { error: result } = await supabase.auth.signInWithOtp({ 
-      email: email.trim(), 
-      options: { emailRedirectTo: window.location.origin } 
-    })
-    setSubmitting(false)
-    if (result) {
-      const limited = result.code === 'over_request_rate_limit' || result.status === 429 || result.message.toLowerCase().includes('rate limit')
-      setError(limited ? 'Batas email Supabase tercapai. Gunakan tab "Kata Sandi" di atas untuk masuk langsung tanpa menunggu kiriman email.' : result.message)
-      if (limited) { sessionStorage.setItem('otp-cooldown-until', String(Date.now() + 3600000)); setCooldown(3600000) }
-      return
-    }
-    sessionStorage.setItem('otp-cooldown-until', String(Date.now() + 60000))
-    setCooldown(60000)
-    setSent(true)
-  }
-
-  const seconds = Math.ceil(cooldown / 1000)
-
-  return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <img src="/favicon.svg" alt="Logo" className="brand-mark" />
-        <p className="eyebrow">CATATAN STOK WARUNG</p>
-        <h1>Masuk untuk<br /><em>mulai.</em></h1>
-        
-        <div className="auth-tabs" role="tablist">
-          <button 
-            type="button" 
-            className={`auth-tab ${authMode === 'password' ? 'active' : ''}`}
-            onClick={() => { setAuthMode('password'); setError('') }}
-          >
-            Kata Sandi (Instan)
-          </button>
-          <button 
-            type="button" 
-            className={`auth-tab ${authMode === 'magiclink' ? 'active' : ''}`}
-            onClick={() => { setAuthMode('magiclink'); setError('') }}
-          >
-            Tautan Email
-          </button>
-        </div>
-
-        {authMode === 'password' ? (
-          <form onSubmit={handlePasswordSubmit}>
-            <p>Masuk langsung tanpa perlu menunggu email OTP.</p>
-            <label>
-              Email
-              <input 
-                type="email" 
-                required 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="nama@email.com" 
-              />
-            </label>
-            <label style={{ marginTop: '12px' }}>
-              Kata Sandi
-              <input 
-                type="password" 
-                required 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="Masukkan kata sandi" 
-              />
-            </label>
-            <button className="primary modal-submit" disabled={submitting}>
-              {submitting ? 'Memeriksa...' : 'Masuk sekarang'}
-            </button>
-            <p style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '14px', lineHeight: '1.5' }}>
-              *Belum punya kata sandi? Masuk lewat tab <strong>"Tautan Email"</strong>, lalu atur kata sandi Anda di menu Pengaturan.
-            </p>
-          </form>
-        ) : (
-          <form onSubmit={handleOtpSubmit}>
-            <p>{sent ? 'Tautan masuk sudah dikirim. Cek email sebelum meminta tautan baru.' : 'Kirim tautan masuk satu kali klik ke alamat email Anda.'}</p>
-            {!sent && (
               <>
-                <label>
-                  Email
-                  <input 
-                    type="email" 
-                    required 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    placeholder="nama@email.com" 
-                  />
-                </label>
-                <button className="primary modal-submit" disabled={cooldown > 0 || submitting}>
-                  {submitting ? 'Mengirim...' : cooldown > 0 ? `Coba lagi dalam ${seconds} detik` : 'Kirim tautan masuk'}
-                </button>
+                <div className="print-header-center">
+                  <div className="print-title">RIWAYAT PEMBELIAN</div>
+                  <div className="print-time">Waktu: {printTime}</div>
+                  <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+                </div>
+                {Object.entries(grouped).map(([cat, items]) => (
+                  <div key={cat} className="print-category-group">
+                    <div className="print-category-title">{'===>'} {cat.toUpperCase()}</div>
+                    <div className="print-items-list">
+                      {items.map((item, idx) => {
+                        const qty = item.quantity || 1
+                        const storeName = item.store || item.store_name || ''
+                        const storeLabel =
+                          includeStoreInPrint && storeName
+                            ? ` · ${storeName.length > 10 ? storeName.slice(0, 9) + '…' : storeName}`
+                            : ''
+                        const unit = item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : '-'
+                        const subtotal = (Number(item.price) || 0) * qty
+                        const price = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'
+                        return (
+                          <div key={idx} className="print-item-block">
+                            <div className="print-item-row-1">
+                              <span className="print-item-bullet">-</span>
+                              <span className="print-item-qty">{qty}</span>
+                              <span className="print-item-name">{item.name}</span>
+                            </div>
+                            <div className="print-item-row-2">
+                              <span className="print-item-unit">
+                                {unit}{storeLabel}
+                              </span>
+                              <span className="print-item-price">{price}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
+                <div className="print-qty-summary">
+                  Total Barang: {entry.items.reduce((sum, item) => sum + (item.quantity || 1), 0)} item
+                </div>
+                <div className="print-total">Total: Rp{historyTotal.toLocaleString('id-ID')}</div>
+                <div className="print-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</div>
               </>
-            )}
-            {sent && (
-              <button type="button" className="primary modal-submit" onClick={() => setSent(false)} disabled={cooldown > 0}>
-                {cooldown > 0 ? `Kirim ulang dalam ${seconds} detik` : 'Kirim ulang tautan'}
-              </button>
-            )}
-          </form>
+            )
+          })()}
+        </div>
+      )}
+
+      <main>
+        <section className="intro">
+          <div>
+            <p className="eyebrow">CATATAN STOK WARUNG</p>
+            <h1>
+              Belanja tanpa<br />
+              <em>lupa.</em>
+            </h1>
+            <p className="lede">Pilih yang perlu dibawa, cetak daftar, lalu lanjutkan jualan.</p>
+          </div>
+          <div className="date-stamp">
+            <span>DAFTAR AKTIF</span>
+            <strong>{selected.length}</strong>
+            <small>barang dipilih</small>
+          </div>
+        </section>
+
+        {error && (
+          <div className="error" role="alert">
+            {error}
+          </div>
         )}
 
-        {error && <div className="error" style={{ marginTop: '16px' }}>{error}</div>}
-      </div>
+        <nav className="tabs" aria-label="Navigasi utama">
+          <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>
+            Daftar barang <span>{data.items.length}</span>
+          </button>
+          <button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>
+            Riwayat <span>{data.history.length}</span>
+          </button>
+          <button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}>
+            Pengaturan
+          </button>
+        </nav>
+
+        {view === 'list' && (
+          <ItemList
+            query={query}
+            setQuery={setQuery}
+            category={category}
+            setCategory={setCategory}
+            categories={categoryNames}
+            rawCategories={data.categories}
+            rawUnits={data.units}
+            visibleItems={visibleItems}
+            paginatedItems={paginatedItems}
+            page={page}
+            setPage={setPage}
+            totalPages={totalPages}
+            ITEMS_PER_PAGE={ITEMS_PER_PAGE}
+            selected={selected}
+            getQty={getQty}
+            changeQty={changeQty}
+            toggleItem={toggleItem}
+            includeStoreInPrint={includeStoreInPrint}
+            setIncludeStoreInPrint={handleToggleIncludeStore}
+            onAddItem={() => {
+              setDraft({
+                name: '',
+                store_name: '',
+                price: '',
+                categoryId: data.categories[0]?.id || '',
+                unitId: data.units[0]?.id || '',
+              })
+              setModal('item')
+            }}
+            onEditItem={(item) => {
+              setDraft({
+                ...item,
+                store_name: item.store_name || '',
+                categoryId: item.category_id,
+                unitId: item.unit_id,
+              })
+              setModal('item')
+            }}
+            onDeleteItem={(item) => {
+              const label = item.store_name ? `"${item.name}" (${item.store_name})` : `"${item.name}"`
+              if (window.confirm(`Hapus barang ${label}?`)) {
+                run(() => supabase.from('items').delete().eq('id', item.id))
+              }
+            }}
+            onGoToSettings={() => setView('settings')}
+            onPrintSelected={() => printReceipt('active')}
+            onMarkBought={markBought}
+          />
+        )}
+
+        {view === 'history' && (
+          <HistoryView
+            filteredHistory={filteredHistory}
+            historyFilter={historyFilter}
+            setHistoryFilter={setHistoryFilter}
+            expandedHistory={expandedHistory}
+            setExpandedHistory={setExpandedHistory}
+            onPrint={(entry) => printReceipt('history', entry)}
+            onDelete={(entry) => {
+              if (window.confirm('Hapus riwayat pembelian ini?')) {
+                run(() => supabase.from('purchase_history').delete().eq('id', entry.id))
+              }
+            }}
+          />
+        )}
+
+        {view === 'settings' && (
+          <SettingsView
+            categories={data.categories}
+            units={data.units}
+            items={data.items}
+            onOpenAddCategory={() => handleOpenPrompt('categories', 'kategori')}
+            onOpenAddUnit={() => handleOpenPrompt('units', 'satuan')}
+            onDeleteCategory={(item) => run(() => supabase.from('categories').delete().eq('id', item.id))}
+            onDeleteUnit={(item) => run(() => supabase.from('units').delete().eq('id', item.id))}
+          />
+        )}
+      </main>
+
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
+      )}
+
+      {/* Modals */}
+      <ItemModal
+        isOpen={modal === 'item'}
+        draft={draft}
+        setDraft={setDraft}
+        categories={data.categories}
+        units={data.units}
+        storeSuggestions={storeSuggestions}
+        onSave={saveItem}
+        onClose={() => setModal(null)}
+      />
+
+      <PromptModal
+        isOpen={promptConfig.isOpen}
+        title={promptConfig.title}
+        label={promptConfig.label}
+        placeholder={promptConfig.placeholder}
+        onConfirm={handleConfirmPrompt}
+        onClose={() => setPromptConfig((p) => ({ ...p, isOpen: false }))}
+      />
+
+      <BluetoothGuideModal
+        isOpen={modal === 'bluetooth-guide'}
+        onClose={() => setModal(null)}
+      />
+
+      <PrintFallbackModal
+        isOpen={modal === 'print-error-fallback'}
+        pendingPrint={pendingPrint}
+        onFallback={doFallbackPrint}
+        onRetry={(type, entry) => {
+          setModal(null)
+          printReceipt(type, entry)
+        }}
+        onClose={() => setModal(null)}
+      />
+
+      <ConfirmExitModal
+        isOpen={modal === 'confirm-exit'}
+        onStay={() => setModal(null)}
+        onExit={handleConfirmExit}
+      />
     </div>
   )
 }
-
-export default App
