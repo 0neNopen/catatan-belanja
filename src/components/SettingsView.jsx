@@ -4,11 +4,14 @@ import { supabase } from '../supabase'
 export default function SettingsView({
   categories,
   units,
+  pieceUnits = [],
   items,
   onOpenAddCategory,
   onOpenAddUnit,
+  onOpenAddPieceUnit,
   onDeleteCategory,
   onDeleteUnit,
+  onDeletePieceUnit,
 }) {
   return (
     <section className="settings">
@@ -33,9 +36,10 @@ export default function SettingsView({
           }}
         />
         <SettingBlock
-          title="Satuan"
-          description="Satuan belanja (dus, renceng) & satuan eceran/isi (botol, pcs, sachet, buah)"
+          title="Satuan Belanja / Paket"
+          description="Satuan kemasan besar/grosir (misal: dus, renceng, karung, pak, bal, kg)"
           items={units}
+          prefix="/"
           onAdd={onOpenAddUnit}
           onDelete={(item) => {
             if (items.some((i) => i.unit_id === item.id)) {
@@ -46,13 +50,28 @@ export default function SettingsView({
             onDeleteUnit(item)
           }}
         />
+        <SettingBlock
+          title="Satuan Isi / Eceran"
+          description="Satuan eceran per item di dalam paket (misal: botol, buah, pcs, sachet, bungkus, butir)"
+          items={pieceUnits}
+          prefix=""
+          onAdd={onOpenAddPieceUnit}
+          onDelete={(item) => {
+            if (items.some((i) => i.piece_unit === item.name)) {
+              return window.alert(
+                'Satuan isi ini masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'
+              )
+            }
+            onDeletePieceUnit(item)
+          }}
+        />
       </div>
       <PasswordSettingBlock />
     </section>
   )
 }
 
-function SettingBlock({ title, description, items, onAdd, onDelete }) {
+function SettingBlock({ title, description, items, prefix = '', onAdd, onDelete }) {
   return (
     <div className="setting-block">
       <div className="block-head">
@@ -69,7 +88,7 @@ function SettingBlock({ title, description, items, onAdd, onDelete }) {
       {items.map((item) => (
         <div className="setting-row" key={item.id}>
           <span>
-            {title === 'Satuan' ? '/' : ''}
+            {prefix}
             {item.name}
           </span>
           <button

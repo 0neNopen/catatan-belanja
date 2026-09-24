@@ -4,6 +4,7 @@ export default function ItemModal({
   setDraft,
   categories,
   units,
+  pieceUnits = [],
   storeSuggestions = [],
   onSave,
   onClose,
@@ -86,7 +87,7 @@ export default function ItemModal({
               onChange={(e) => setDraft({ ...draft, piece_unit: e.target.value })}
             >
               <option value="">(Tanpa satuan / item)</option>
-              {units.map((item) => (
+              {pieceUnits.map((item) => (
                 <option value={item.name} key={item.id}>
                   {item.name}
                 </option>

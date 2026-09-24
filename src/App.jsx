@@ -17,7 +17,18 @@ import ConfirmExitModal from './components/modals/ConfirmExitModal'
 
 import { printReceiptBluetooth } from './utils/bluetoothPrinter'
 
-const emptyData = { categories: [], units: [], items: [], history: [] }
+const DEFAULT_PIECE_UNITS = [
+  { id: 'def-1', name: 'buah' },
+  { id: 'def-2', name: 'botol' },
+  { id: 'def-3', name: 'pcs' },
+  { id: 'def-4', name: 'sachet' },
+  { id: 'def-5', name: 'bungkus' },
+  { id: 'def-6', name: 'butir' },
+  { id: 'def-7', name: 'lembar' },
+  { id: 'def-8', name: 'biji' },
+]
+
+const emptyData = { categories: [], units: [], piece_units: DEFAULT_PIECE_UNITS, items: [], history: [] }
 const ITEMS_PER_PAGE = 10
 
 export default function App() {
@@ -249,6 +260,11 @@ export default function App() {
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'piece_units', filter: `user_id=eq.${session.user.id}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'items', filter: `user_id=eq.${session.user.id}` },
         debouncedRefresh
       )
@@ -267,9 +283,10 @@ export default function App() {
 
   async function loadData({ isRetry = false } = {}) {
     setError('')
-    const [categories, units, items, history] = await Promise.all([
+    const [categories, units, pieceUnitsRes, items, history] = await Promise.all([
       supabase.from('categories').select('*').order('created_at', { ascending: false }),
       supabase.from('units').select('*').order('created_at', { ascending: false }),
+      supabase.from('piece_units').select('*').order('created_at', { ascending: false }),
       supabase
         .from('items')
         .select('*, categories(name), units(name)')
@@ -310,9 +327,10 @@ export default function App() {
           }, 1000)
 
           wakeRetryRef.current = window.setTimeout(async () => {
-            const [c, u, i, h] = await Promise.all([
+            const [c, u, pu, i, h] = await Promise.all([
               supabase.from('categories').select('*').order('created_at', { ascending: false }),
               supabase.from('units').select('*').order('created_at', { ascending: false }),
+              supabase.from('piece_units').select('*').order('created_at', { ascending: false }),
               supabase
                 .from('items')
                 .select('*, categories(name), units(name)')
@@ -326,7 +344,8 @@ export default function App() {
             } else {
               setDbWaking(false)
               setWakeCountdown(0)
-              setData({ categories: c.data, units: u.data, items: i.data, history: h.data })
+              const puData = !pu.error && pu.data && pu.data.length > 0 ? pu.data : DEFAULT_PIECE_UNITS
+              setData({ categories: c.data, units: u.data, piece_units: puData, items: i.data, history: h.data })
             }
           }, 5000)
         }
@@ -338,7 +357,17 @@ export default function App() {
     }
 
     setDbWaking(false)
-    setData({ categories: categories.data, units: units.data, items: items.data, history: history.data })
+    const pieceUnitsData =
+      !pieceUnitsRes.error && pieceUnitsRes.data && pieceUnitsRes.data.length > 0
+        ? pieceUnitsRes.data
+        : DEFAULT_PIECE_UNITS
+    setData({
+      categories: categories.data,
+      units: units.data,
+      piece_units: pieceUnitsData,
+      items: items.data,
+      history: history.data,
+    })
   }
 
   async function run(action) {
@@ -463,13 +492,25 @@ export default function App() {
       table,
       label,
       title: `Tambah ${label} baru`,
-      placeholder: label === 'kategori' ? 'Contoh: Bumbu Dapur' : 'Contoh: kg, dus, renceng',
+      placeholder:
+        table === 'categories'
+          ? 'Contoh: Bumbu Dapur'
+          : table === 'units'
+          ? 'Contoh: dus, renceng, karung'
+          : 'Contoh: botol, buah, pcs, sachet',
     })
   }
 
   async function handleConfirmPrompt(name) {
     setPromptConfig((p) => ({ ...p, isOpen: false }))
-    await run(() => supabase.from(promptConfig.table).insert({ name, user_id: session.user.id }))
+    const res = await run(() => supabase.from(promptConfig.table).insert({ name, user_id: session.user.id }))
+    if (res?.error && promptConfig.table === 'piece_units') {
+      const newLocalId = 'def-' + Date.now()
+      setData((prev) => ({
+        ...prev,
+        piece_units: [{ id: newLocalId, name }, ...prev.piece_units],
+      }))
+    }
     setToast(`${promptConfig.label} berhasil ditambahkan!`)
     setTimeout(() => setToast(''), 2200)
   }
@@ -799,11 +840,23 @@ export default function App() {
           <SettingsView
             categories={data.categories}
             units={data.units}
+            pieceUnits={data.piece_units || []}
             items={data.items}
             onOpenAddCategory={() => handleOpenPrompt('categories', 'kategori')}
-            onOpenAddUnit={() => handleOpenPrompt('units', 'satuan')}
+            onOpenAddUnit={() => handleOpenPrompt('units', 'satuan belanja')}
+            onOpenAddPieceUnit={() => handleOpenPrompt('piece_units', 'satuan eceran')}
             onDeleteCategory={(item) => run(() => supabase.from('categories').delete().eq('id', item.id))}
             onDeleteUnit={(item) => run(() => supabase.from('units').delete().eq('id', item.id))}
+            onDeletePieceUnit={(item) => {
+              if (String(item.id).startsWith('def-')) {
+                setData((prev) => ({
+                  ...prev,
+                  piece_units: prev.piece_units.filter((p) => p.id !== item.id),
+                }))
+                return
+              }
+              run(() => supabase.from('piece_units').delete().eq('id', item.id))
+            }}
           />
         )}
       </main>
@@ -821,6 +874,7 @@ export default function App() {
         setDraft={setDraft}
         categories={data.categories}
         units={data.units}
+        pieceUnits={data.piece_units || []}
         storeSuggestions={storeSuggestions}
         onSave={saveItem}
         onClose={() => setModal(null)}
