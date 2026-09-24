@@ -35,14 +35,15 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
   - **Baris 2**: Indentasi rapi memuat `(satuan)` dan opsional `(nama toko)` di kiri, serta `(harga)` **rata kanan** persis di kolom ke-32 kertas printer thermal sehingga nominal harga selalu sejajar rapi.
 - **Kerapian Cetak Murni ASCII (Bebas Glitch Font)**: Seluruh output cetak menggunakan karakter murni ASCII (CodePage 437) tanpa logo/emoji toko (`🏬`) atau simbol multi-byte (`·`, `…`), menjamin angka nol di ujung harga tidak pernah turun baris secara tidak wajar.
 - **Sakelar Opsi Cetak Toko Fleksibel**: Tersedia tombol pilihan `[✓] Cetak toko` di sebelah tombol cetak. Jika diaktifkan, nama toko dicantumkan di baris ke-2; jika dimatikan, struk tercetak bersih tanpa keterangan toko.
-- **Format Struk Catatan Belanja (Opsi Cetak Toko Aktif)**:
-  ```text
-          CATATAN BELANJA
-     Waktu: 24 Sep 2026, 14.10
+
+#### Contoh Format Struk Catatan Belanja (Opsi Cetak Toko Aktif)
+```text
+        CATATAN BELANJA
+   Waktu: 24 Sep 2026, 14.10
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- 2 Teh Botol (isi 24)
+- 2 Teh Botol (isi 24 botol)
     /dus (Toko Laris)  Rp70.000
-- 1 Kopi Sachet (isi 10)
+- 1 Kopi Sachet (isi 10 sachet)
     /renceng           Rp12.000
 - 5 Beras Ramos 5kg
     /karung           Rp140.000
@@ -54,17 +55,18 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 Total Barang: 12 item
 Total: Rp324.000
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ```
-- **Format Struk Riwayat Pembelian (Dikelompokkan per Kategori)**:
-  ```text
-       RIWAYAT PEMBELIAN
-     Waktu: 24 Sep 2026, 14.15
+```
+
+#### Contoh Format Struk Riwayat Pembelian (Dikelompokkan per Kategori)
+```text
+     RIWAYAT PEMBELIAN
+   Waktu: 24 Sep 2026, 14.15
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ===> MINUMAN
-- 2 Teh Botol (isi 24)
+- 2 Teh Botol (isi 24 botol)
     /dus (Toko Laris)  Rp70.000
-- 1 Kopi Sachet (isi 10)
+- 1 Kopi Sachet (isi 10 sachet)
     /renceng           Rp12.000
 
 ===> SEMBAKO
@@ -259,14 +261,14 @@ src/
 │   ├── modals/
 │   │   ├── BluetoothGuideModal.jsx   # Panduan aktivasi Web Bluetooth di Linux
 │   │   ├── ConfirmExitModal.jsx      # Modal konfirmasi back button guard
-│   │   ├── ItemModal.jsx             # Form tambah & edit barang dengan input toko, isi paket, & modal eceran
+│   │   ├── ItemModal.jsx             # Form tambah & edit barang (toko, satuan belanja, rincian isi, & satuan eceran)
 │   │   ├── PrintFallbackModal.jsx    # Opsi cetak browser jika Bluetooth tidak aktif
 │   │   └── PromptModal.jsx           # Modal kustom Kategori & Satuan ramah HP
 │   ├── AuthScreen.jsx          # Form login dual-mode (password instan & email OTP)
 │   ├── HistoryView.jsx         # Arsip riwayat pembelian dengan kolom toko & filter waktu
 │   ├── ItemList.jsx            # Daftar barang, paginasi, badge toko, & sakelar cetak toko
 │   ├── Notice.jsx              # Layar info, loading, & auto-resume database bangun
-│   ├── SettingsView.jsx        # Pengaturan kategori, satuan, & ganti kata sandi akun
+│   ├── SettingsView.jsx        # Pengaturan kategori, satuan belanja, satuan eceran, & kata sandi akun
 │   └── TopBar.jsx              # Header aplikasi, status realtime cloud, & tombol logout
 ├── utils/
 │   └── bluetoothPrinter.js     # Driver printer thermal ESC/POS 32-kolom & Web Bluetooth GATT

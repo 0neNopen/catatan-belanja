@@ -3,13 +3,15 @@
 ## Siapkan Google Sheets
 
 1. Buat spreadsheet baru bernama `Catatan Belanja - Template Import`.
-2. Buat sheet `Data Barang` dengan header tepat:
+2. Buat sheet `Data Barang` dengan header wajib:
 
    `Nama Barang,Kategori,Satuan,Harga`
 
+   *Kolom opsional tambahan*: `Toko,Isi,Satuan Isi` (contoh: Toko Laris, 24, botol).
+
 3. Isi satu barang per baris. Contoh harga: `15000`, bukan `Rp15.000`.
 4. Gunakan kategori yang sudah dibuat pada akun aplikasi: `Sembako`, `Rokok`, `Snack`.
-5. Gunakan satuan yang sudah dibuat: `dus`, `box`, `rtg`, `ikat`.
+5. Gunakan satuan belanja yang sudah dibuat: `dus`, `box`, `rtg`, `ikat`, `kg`.
 6. Download hanya sheet `Data Barang`: **File → Download → Comma-separated values (.csv)**.
 7. Simpan hasilnya sebagai `data.csv` di folder proyek atau folder `import`.
 

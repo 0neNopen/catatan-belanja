@@ -74,7 +74,22 @@ else {
         const duplicateKey = `${name.toLowerCase()}|${category.id}`
         if (existing.has(duplicateKey)) { report.duplicates++; report.warnings.push(`Baris ${line}: duplikat ${name}`); log(`WARN baris ${line}: ${name} sudah ada, tetap insert ID baru`) }
         existing.add(duplicateKey)
-        validRows.push({ user_id: account.id, name, price: Number(price), category_id: category.id, unit_id: unit.id, is_selected: false })
+
+        const storeName = (row['Toko'] || row['Nama Toko'] || '').trim()
+        const pieces = Number(row['Isi'] || row['Isi Paket']) || null
+        const pieceUnit = (row['Satuan Isi'] || row['Satuan Eceran'] || '').trim()
+
+        validRows.push({
+          user_id: account.id,
+          name,
+          store_name: storeName,
+          pieces_per_unit: pieces && pieces > 1 ? pieces : null,
+          piece_unit: pieceUnit,
+          price: Number(price),
+          category_id: category.id,
+          unit_id: unit.id,
+          is_selected: false,
+        })
         report.valid++
       })
       if (dryRun) { log('DRY RUN selesai: tidak ada data yang ditulis.'); return finish() }
