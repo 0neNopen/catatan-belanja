@@ -58,6 +58,7 @@ export default function App() {
   const [dbWaking, setDbWaking] = useState(false)
   const [wakeCountdown, setWakeCountdown] = useState(0)
   const wakeRetryRef = useRef(null)
+  const hasSeededPieceUnitsRef = useRef(false)
 
   // Opsi Cetak Fleksibel (Toko di Struk)
   const [includeStoreInPrint, setIncludeStoreInPrint] = useState(() => {
@@ -357,10 +358,33 @@ export default function App() {
     }
 
     setDbWaking(false)
-    const pieceUnitsData =
+    let pieceUnitsData =
       !pieceUnitsRes.error && pieceUnitsRes.data && pieceUnitsRes.data.length > 0
         ? pieceUnitsRes.data
         : DEFAULT_PIECE_UNITS
+
+    // Auto-seed satuan eceran bawaan ke database jika tabel baru dibuat & masih kosong
+    if (
+      !pieceUnitsRes.error &&
+      pieceUnitsRes.data &&
+      pieceUnitsRes.data.length === 0 &&
+      session?.user?.id &&
+      !hasSeededPieceUnitsRef.current
+    ) {
+      hasSeededPieceUnitsRef.current = true
+      const defaults = ['buah', 'botol', 'pcs', 'sachet', 'bungkus', 'butir', 'lembar', 'biji']
+      const seedPayload = defaults.map((name) => ({ name, user_id: session.user.id }))
+      supabase
+        .from('piece_units')
+        .insert(seedPayload)
+        .select('*')
+        .then((res) => {
+          if (!res.error && res.data?.length > 0) {
+            setData((prev) => ({ ...prev, piece_units: res.data }))
+          }
+        })
+    }
+
     setData({
       categories: categories.data,
       units: units.data,
