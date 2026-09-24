@@ -120,7 +120,7 @@ export default function HistoryView({
                               /{item.unit || '-'}
                               {item.pieces_per_unit > 1 && (
                                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--muted)' }}>
-                                  (isi {item.pieces_per_unit})
+                                  (isi {item.pieces_per_unit}{item.piece_unit ? ` ${item.piece_unit}` : ''})
                                 </span>
                               )}
                             </td>
@@ -129,7 +129,7 @@ export default function HistoryView({
                               {p ? `Rp${p.toLocaleString('id-ID')}` : '—'}
                               {item.pieces_per_unit > 1 && p > 0 && (
                                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>
-                                  @{Math.round(p / item.pieces_per_unit).toLocaleString('id-ID')}
+                                  @{Math.round(p / item.pieces_per_unit).toLocaleString('id-ID')}{item.piece_unit ? `/${item.piece_unit}` : ''}
                                 </span>
                               )}
                             </td>

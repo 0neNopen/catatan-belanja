@@ -11,8 +11,8 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 ### 1. Manajemen Stok, Data Barang & Multi-Store (Beda Toko & Harga)
 - **CRUD Barang Lengkap**: Tambah, lihat, ubah (edit), dan hapus data barang dengan aman (disertai konfirmasi).
 - **Dukungan Multi-Store**: Barang dengan nama yang sama dapat disimpan dengan toko dan harga yang berbeda (contoh: *Botol Minum 600ml* di *Toko A* Rp15.000 vs di *Toko B* Rp18.000).
-- **Isi Paket per Satuan & Kalkulator Modal Eceran Otomatis**: Form tambah/edit barang dilengkapi input kuantitas paket/grosir (misal: 1 dus isi 24 botol, 1 renceng isi 10 sachet). Sistem secara instan menghitung modal eceran pokok (`💡 Modal eceran: @Rp... / item`) secara realtime.
-- **Atribut Lengkap**: Menyimpan nama barang, nama toko/agen (opsional dengan saran otomatis *autocomplete*), harga satuan, isi paket per satuan, kategori, dan satuan unit (misal: `/kg`, `/dus`, `/pcs`, `/renceng`).
+- **Isi Paket per Satuan & Kalkulator Modal Eceran Otomatis**: Form tambah/edit barang dilengkapi input jumlah isi paket serta pilihan **Satuan Isi / Eceran** (misal: 1 dus isi 24 botol, 1 renceng isi 10 sachet). Pilihan satuan isi terintegrasi langsung dengan menu **Pengaturan**, sehingga pengguna tidak perlu mengetik teks satuan berulang kali. Sistem secara instan menghitung modal eceran pokok (`Modal eceran: @Rp... / botol`) dengan tampilan teks murni yang bersih.
+- **Atribut Lengkap**: Menyimpan nama barang, nama toko/agen (opsional dengan saran otomatis *autocomplete*), harga satuan, jumlah isi, satuan eceran, kategori, dan satuan belanja (misal: `/kg`, `/dus`, `/pcs`, `/renceng`).
 - **Modal Input Kustom Ramah HP**: Penambahan Kategori dan Satuan baru menggunakan modal in-app yang elegan menggantikan `window.prompt()` bawaan browser, sehingga 100% aman dan nyaman ditekan di layar sentuh HP.
 
 ### 2. Paginasi Cerdas (10 Barang per Halaman)
@@ -170,12 +170,13 @@ VITE_SUPABASE_ANON_KEY=anon-public-key-anda
 4. Buat tabel database:
    - `categories` (`id`, `user_id`, `name`, `created_at`)
    - `units` (`id`, `user_id`, `name`, `created_at`)
-   - `items` (`id`, `user_id`, `name`, `price`, `category_id`, `unit_id`, `store_name`, `pieces_per_unit`, `quantity`, `is_selected`, `created_at`)
+   - `items` (`id`, `user_id`, `name`, `price`, `category_id`, `unit_id`, `store_name`, `pieces_per_unit`, `piece_unit`, `quantity`, `is_selected`, `created_at`)
    - `purchase_history` (`id`, `user_id`, `items` (JSONB), `purchased_at`, `created_at`)
-5. Jika tabel `items` sudah ada sebelumnya, tambahkan kolom pendukung (`store_name` dan `pieces_per_unit`):
+5. Jika tabel `items` sudah ada sebelumnya, tambahkan kolom pendukung (`store_name`, `pieces_per_unit`, dan `piece_unit`):
    ```sql
    ALTER TABLE items ADD COLUMN IF NOT EXISTS store_name TEXT DEFAULT '';
    ALTER TABLE items ADD COLUMN IF NOT EXISTS pieces_per_unit INT DEFAULT NULL;
+   ALTER TABLE items ADD COLUMN IF NOT EXISTS piece_unit TEXT DEFAULT '';
    ```
    *(Aplikasi memiliki perlindungan fallback otomatis: jika kolom belum ditambahkan ke Supabase, sistem tetap menyimpan data tanpa error atau crash).*
 6. Aktifkan **Row Level Security (RLS)** dengan policy `auth.uid() = user_id`.

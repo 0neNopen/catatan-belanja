@@ -67,11 +67,13 @@ export function formatReceiptItem(
   priceStr,
   includeStore = true,
   lineWidth = 32,
-  pieces = null
+  pieces = null,
+  pieceUnit = ''
 ) {
-  // Jika memiliki rincian isi paket > 1, sematkan (isi ...) di baris 1 nama barang
+  // Jika memiliki rincian isi paket > 1, sematkan (isi ... [satuan]) di baris 1 nama barang
   const piecesNum = Number(pieces) || 0
-  const fullName = piecesNum > 1 ? `${name} (isi ${piecesNum})` : name
+  const unitSuffix = pieceUnit && pieceUnit.trim() ? ` ${pieceUnit.trim()}` : ''
+  const fullName = piecesNum > 1 ? `${name} (isi ${piecesNum}${unitSuffix})` : name
 
   // Baris 1: Nama barang dengan smart word-wrap rapi
   const line1 = wrapItemName(qty, fullName, lineWidth)
@@ -129,7 +131,8 @@ export function buildReceiptEscPos({
       const subtotal = unitPrice * qty
       const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'
       const pieces = item.pieces_per_unit || null
-      text += formatReceiptItem(qty, item.name, unit, store, priceStr, includeStore, 32, pieces)
+      const pieceUnit = item.piece_unit || ''
+      text += formatReceiptItem(qty, item.name, unit, store, priceStr, includeStore, 32, pieces, pieceUnit)
       total += subtotal
     })
   } else {
@@ -151,7 +154,8 @@ export function buildReceiptEscPos({
         const subtotal = unitPrice * qty
         const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'
         const pieces = item.pieces_per_unit || item.pieces || null
-        text += formatReceiptItem(qty, item.name, unit, store, priceStr, includeStore, 32, pieces)
+        const pieceUnit = item.piece_unit || ''
+        text += formatReceiptItem(qty, item.name, unit, store, priceStr, includeStore, 32, pieces, pieceUnit)
         total += subtotal
       })
     })

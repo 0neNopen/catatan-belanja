@@ -52,23 +52,23 @@ export default function ItemModal({
           )}
         </label>
 
+        <label>
+          Satuan Belanja
+          <select
+            value={draft.unitId}
+            onChange={(e) => setDraft({ ...draft, unitId: e.target.value })}
+          >
+            {units.map((item) => (
+              <option value={item.id} key={item.id}>
+                /{item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <div className="modal-grid-2">
           <label>
-            Satuan
-            <select
-              value={draft.unitId}
-              onChange={(e) => setDraft({ ...draft, unitId: e.target.value })}
-            >
-              {units.map((item) => (
-                <option value={item.id} key={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Isi / Paket (Opsional)
+            Jumlah Isi (Opsional)
             <input
               type="number"
               min="1"
@@ -77,6 +77,21 @@ export default function ItemModal({
               onChange={(e) => setDraft({ ...draft, pieces_per_unit: e.target.value })}
               placeholder="Contoh: 24"
             />
+          </label>
+
+          <label>
+            Satuan Isi / Eceran
+            <select
+              value={draft.piece_unit || ''}
+              onChange={(e) => setDraft({ ...draft, piece_unit: e.target.value })}
+            >
+              <option value="">(Tanpa satuan / item)</option>
+              {units.map((item) => (
+                <option value={item.name} key={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 
@@ -94,8 +109,10 @@ export default function ItemModal({
 
         {unitPrice > 0 && (
           <div className="unit-calc-hint">
-            <span>💡 Modal eceran:</span>
-            <strong>@Rp{unitPrice.toLocaleString('id-ID')} / item</strong>
+            <span>Modal eceran:</span>
+            <strong>
+              @Rp{unitPrice.toLocaleString('id-ID')} / {draft.piece_unit || 'item'}
+            </strong>
           </div>
         )}
 

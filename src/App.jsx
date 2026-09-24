@@ -30,7 +30,15 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [modal, setModal] = useState(null)
-  const [draft, setDraft] = useState({ name: '', store_name: '', pieces_per_unit: '', categoryId: '', unitId: '', price: '' })
+  const [draft, setDraft] = useState({
+    name: '',
+    store_name: '',
+    pieces_per_unit: '',
+    piece_unit: '',
+    categoryId: '',
+    unitId: '',
+    price: '',
+  })
   const [historyFilter, setHistoryFilter] = useState('all')
   const [expandedHistory, setExpandedHistory] = useState(null)
   const [printHistoryId, setPrintHistoryId] = useState(null)
@@ -391,7 +399,7 @@ export default function App() {
     })
   }, [data.history, historyFilter])
 
-  // Simpan barang dengan penanganan aman kolom store_name
+  // Simpan barang dengan penanganan aman kolom store_name, pieces_per_unit, & piece_unit
   async function saveItem(event) {
     event.preventDefault()
     if (!draft.name.trim() || !draft.categoryId || !draft.unitId) {
@@ -402,6 +410,7 @@ export default function App() {
       name: draft.name.trim(),
       store_name: draft.store_name?.trim() || '',
       pieces_per_unit: piecesVal > 1 ? piecesVal : null,
+      piece_unit: (draft.piece_unit || '').trim(),
       price: Math.max(0, Math.round(Number(draft.price) || 0)),
       category_id: draft.categoryId,
       unit_id: draft.unitId,
@@ -415,6 +424,15 @@ export default function App() {
         ? supabase.from('items').update(curPayload).eq('id', draft.id)
         : supabase.from('items').insert(curPayload)
       let res = await op
+
+      // Fallback jika database belum menambahkan kolom piece_unit
+      if (res.error && res.error.message?.includes('piece_unit')) {
+        delete curPayload.piece_unit
+        op = draft.id
+          ? supabase.from('items').update(curPayload).eq('id', draft.id)
+          : supabase.from('items').insert(curPayload)
+        res = await op
+      }
 
       // Fallback jika database belum menambahkan kolom pieces_per_unit
       if (res.error && res.error.message?.includes('pieces_per_unit')) {
@@ -467,6 +485,7 @@ export default function App() {
           name: item.name,
           store: item.store_name || '',
           pieces_per_unit: item.pieces_per_unit || null,
+          piece_unit: item.piece_unit || '',
           price: Number(item.price) || 0,
           quantity: getQty(item.id),
           category: item.categories?.name || 'Tanpa kategori',
@@ -636,7 +655,8 @@ export default function App() {
                         const subtotal = (Number(item.price) || 0) * qty
                         const price = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'
                         const pieces = item.pieces_per_unit || item.pieces || null
-                        const piecesLabel = pieces > 1 ? ` (isi ${pieces})` : ''
+                        const pieceUnit = item.piece_unit ? ` ${item.piece_unit}` : ''
+                        const piecesLabel = pieces > 1 ? ` (isi ${pieces}${pieceUnit})` : ''
                         return (
                           <div key={idx} className="print-item-block">
                             <div className="print-item-row-1">
@@ -729,6 +749,7 @@ export default function App() {
                 name: '',
                 store_name: '',
                 pieces_per_unit: '',
+                piece_unit: '',
                 price: '',
                 categoryId: data.categories[0]?.id || '',
                 unitId: data.units[0]?.id || '',
@@ -740,6 +761,7 @@ export default function App() {
                 ...item,
                 store_name: item.store_name || '',
                 pieces_per_unit: item.pieces_per_unit || '',
+                piece_unit: item.piece_unit || '',
                 categoryId: item.category_id,
                 unitId: item.unit_id,
               })

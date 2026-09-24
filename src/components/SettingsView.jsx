@@ -34,6 +34,7 @@ export default function SettingsView({
         />
         <SettingBlock
           title="Satuan"
+          description="Satuan belanja (dus, renceng) & satuan eceran/isi (botol, pcs, sachet, buah)"
           items={units}
           onAdd={onOpenAddUnit}
           onDelete={(item) => {
@@ -51,7 +52,7 @@ export default function SettingsView({
   )
 }
 
-function SettingBlock({ title, items, onAdd, onDelete }) {
+function SettingBlock({ title, description, items, onAdd, onDelete }) {
   return (
     <div className="setting-block">
       <div className="block-head">
@@ -60,6 +61,11 @@ function SettingBlock({ title, items, onAdd, onDelete }) {
           + Tambah
         </button>
       </div>
+      {description && (
+        <p style={{ fontSize: '11px', color: 'var(--muted)', margin: '4px 0 10px', lineHeight: '1.4' }}>
+          {description}
+        </p>
+      )}
       {items.map((item) => (
         <div className="setting-row" key={item.id}>
           <span>

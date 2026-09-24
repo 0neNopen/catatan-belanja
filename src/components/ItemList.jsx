@@ -168,10 +168,13 @@ export default function ItemList({
                     <span className="item-unit">/{item.units?.name}</span>
                     {item.pieces_per_unit > 1 && (
                       <>
-                        <span className="item-pieces">(isi {item.pieces_per_unit})</span>
+                        <span className="item-pieces">
+                          (isi {item.pieces_per_unit}{item.piece_unit ? ` ${item.piece_unit}` : ''})
+                        </span>
                         {unitPrice > 0 && (
                           <span className="item-unit-cost">
                             @Rp{Math.round(unitPrice / item.pieces_per_unit).toLocaleString('id-ID')}
+                            {item.piece_unit ? `/${item.piece_unit}` : ''}
                           </span>
                         )}
                       </>
@@ -303,7 +306,9 @@ export default function ItemList({
                 <span className="print-item-qty">{qty}</span>
                 <span className="print-item-name">
                   {item.name}
-                  {item.pieces_per_unit > 1 ? ` (isi ${item.pieces_per_unit})` : ''}
+                  {item.pieces_per_unit > 1
+                    ? ` (isi ${item.pieces_per_unit}${item.piece_unit ? ` ${item.piece_unit}` : ''})`
+                    : ''}
                 </span>
               </div>
               <div className="print-item-row-2">
