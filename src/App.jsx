@@ -30,7 +30,7 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [modal, setModal] = useState(null)
-  const [draft, setDraft] = useState({ name: '', store_name: '', categoryId: '', unitId: '', price: '' })
+  const [draft, setDraft] = useState({ name: '', store_name: '', pieces_per_unit: '', categoryId: '', unitId: '', price: '' })
   const [historyFilter, setHistoryFilter] = useState('all')
   const [expandedHistory, setExpandedHistory] = useState(null)
   const [printHistoryId, setPrintHistoryId] = useState(null)
@@ -397,9 +397,11 @@ export default function App() {
     if (!draft.name.trim() || !draft.categoryId || !draft.unitId) {
       return setError('Buat kategori dan satuan sebelum menyimpan barang.')
     }
+    const piecesVal = Number(draft.pieces_per_unit)
     const payload = {
       name: draft.name.trim(),
       store_name: draft.store_name?.trim() || '',
+      pieces_per_unit: piecesVal > 1 ? piecesVal : null,
       price: Math.max(0, Math.round(Number(draft.price) || 0)),
       category_id: draft.categoryId,
       unit_id: draft.unitId,
@@ -408,17 +410,30 @@ export default function App() {
     }
 
     await run(async () => {
-      const op = draft.id
-        ? supabase.from('items').update(payload).eq('id', draft.id)
-        : supabase.from('items').insert(payload)
-      const res = await op
-      // Fallback jika database belum menjalankan SQL penambahan kolom store_name
-      if (res.error && res.error.message?.includes('store_name')) {
-        const { store_name, ...fallbackPayload } = payload
-        return draft.id
-          ? supabase.from('items').update(fallbackPayload).eq('id', draft.id)
-          : supabase.from('items').insert(fallbackPayload)
+      let curPayload = { ...payload }
+      let op = draft.id
+        ? supabase.from('items').update(curPayload).eq('id', draft.id)
+        : supabase.from('items').insert(curPayload)
+      let res = await op
+
+      // Fallback jika database belum menambahkan kolom pieces_per_unit
+      if (res.error && res.error.message?.includes('pieces_per_unit')) {
+        delete curPayload.pieces_per_unit
+        op = draft.id
+          ? supabase.from('items').update(curPayload).eq('id', draft.id)
+          : supabase.from('items').insert(curPayload)
+        res = await op
       }
+
+      // Fallback jika database belum menambahkan kolom store_name
+      if (res.error && res.error.message?.includes('store_name')) {
+        delete curPayload.store_name
+        op = draft.id
+          ? supabase.from('items').update(curPayload).eq('id', draft.id)
+          : supabase.from('items').insert(curPayload)
+        res = await op
+      }
+
       return res
     })
     setModal(null)
@@ -451,6 +466,7 @@ export default function App() {
         items: selected.map((item) => ({
           name: item.name,
           store: item.store_name || '',
+          pieces_per_unit: item.pieces_per_unit || null,
           price: Number(item.price) || 0,
           quantity: getQty(item.id),
           category: item.categories?.name || 'Tanpa kategori',
@@ -619,12 +635,14 @@ export default function App() {
                         const unit = item.unit ? (item.unit.startsWith('/') ? item.unit : `/${item.unit}`) : '-'
                         const subtotal = (Number(item.price) || 0) * qty
                         const price = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'
+                        const pieces = item.pieces_per_unit || item.pieces || null
+                        const piecesLabel = pieces > 1 ? ` (isi ${pieces})` : ''
                         return (
                           <div key={idx} className="print-item-block">
                             <div className="print-item-row-1">
                               <span className="print-item-bullet">-</span>
                               <span className="print-item-qty">{qty}</span>
-                              <span className="print-item-name">{item.name}</span>
+                              <span className="print-item-name">{item.name}{piecesLabel}</span>
                             </div>
                             <div className="print-item-row-2">
                               <span className="print-item-unit">
@@ -710,6 +728,7 @@ export default function App() {
               setDraft({
                 name: '',
                 store_name: '',
+                pieces_per_unit: '',
                 price: '',
                 categoryId: data.categories[0]?.id || '',
                 unitId: data.units[0]?.id || '',
@@ -720,6 +739,7 @@ export default function App() {
               setDraft({
                 ...item,
                 store_name: item.store_name || '',
+                pieces_per_unit: item.pieces_per_unit || '',
                 categoryId: item.category_id,
                 unitId: item.unit_id,
               })

@@ -11,7 +11,8 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 ### 1. Manajemen Stok, Data Barang & Multi-Store (Beda Toko & Harga)
 - **CRUD Barang Lengkap**: Tambah, lihat, ubah (edit), dan hapus data barang dengan aman (disertai konfirmasi).
 - **Dukungan Multi-Store**: Barang dengan nama yang sama dapat disimpan dengan toko dan harga yang berbeda (contoh: *Botol Minum 600ml* di *Toko A* Rp15.000 vs di *Toko B* Rp18.000).
-- **Atribut Lengkap**: Menyimpan nama barang, nama toko/agen (opsional dengan saran otomatis *autocomplete*), harga satuan, kategori, dan satuan unit (misal: `/kg`, `/dus`, `/pcs`, `/renceng`).
+- **Isi Paket per Satuan & Kalkulator Modal Eceran Otomatis**: Form tambah/edit barang dilengkapi input kuantitas paket/grosir (misal: 1 dus isi 24 botol, 1 renceng isi 10 sachet). Sistem secara instan menghitung modal eceran pokok (`💡 Modal eceran: @Rp... / item`) secara realtime.
+- **Atribut Lengkap**: Menyimpan nama barang, nama toko/agen (opsional dengan saran otomatis *autocomplete*), harga satuan, isi paket per satuan, kategori, dan satuan unit (misal: `/kg`, `/dus`, `/pcs`, `/renceng`).
 - **Modal Input Kustom Ramah HP**: Penambahan Kategori dan Satuan baru menggunakan modal in-app yang elegan menggantikan `window.prompt()` bawaan browser, sehingga 100% aman dan nyaman ditekan di layar sentuh HP.
 
 ### 2. Paginasi Cerdas (10 Barang per Halaman)
@@ -29,36 +30,42 @@ Aplikasi ini dapat diakses secara fleksibel dari perangkat HP Android/iOS, table
 ### 4. Pencetakan Struk Thermal Mini & Browser (Dual-Mode Print)
 - **Direct Bluetooth ESC/POS**: Terhubung langsung ke printer thermal mini Bluetooth (58mm / 80mm).
 - **System / Browser Print Fallback**: Opsi cetak melalui dialog print browser/HP jika Bluetooth tidak tersedia.
-- **Format 2 Baris Anti-Terpotong (Standar Kasir POS)**:
-  - **Baris 1**: `- (jumlah barang)  (nama barang)` leluasa dan utuh sepanjang baris tanpa terpotong atau bertabrakan dengan harga.
-  - **Baris 2**: Indentasi rapi memuat `(satuan)` dan opsional `(nama toko)` di kiri, serta `(harga)` **rata kanan** di ujung kertas 32 karakter sehingga nominal harga selalu tercetak rapi, bersih, dan tidak pernah bertubrukan.
+- **Format 2 Baris Anti-Sesak (Standar Kasir POS)**:
+  - **Baris 1**: `- (jumlah barang)  (nama barang) (isi N)` leluasa dan utuh sepanjang baris. Jika nama barang panjang atau memiliki isi paket, sistem menggunakan *smart word-wrap* sehingga teks tidak pernah terpotong atau menimpa harga.
+  - **Baris 2**: Indentasi rapi memuat `(satuan)` dan opsional `(nama toko)` di kiri, serta `(harga)` **rata kanan** persis di kolom ke-32 kertas printer thermal sehingga nominal harga selalu sejajar rapi.
+- **Kerapian Cetak Murni ASCII (Bebas Glitch Font)**: Seluruh output cetak menggunakan karakter murni ASCII (CodePage 437) tanpa logo/emoji toko (`🏬`) atau simbol multi-byte (`·`, `…`), menjamin angka nol di ujung harga tidak pernah turun baris secara tidak wajar.
 - **Sakelar Opsi Cetak Toko Fleksibel**: Tersedia tombol pilihan `[✓] Cetak toko` di sebelah tombol cetak. Jika diaktifkan, nama toko dicantumkan di baris ke-2; jika dimatikan, struk tercetak bersih tanpa keterangan toko.
 - **Format Struk Catatan Belanja (Opsi Cetak Toko Aktif)**:
   ```text
           CATATAN BELANJA
-     Waktu: 21 Sep 2026, 09.30
+     Waktu: 24 Sep 2026, 14.10
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- 2 Botol Minum 600ml
-    /pcs (Toko A)      Rp30.000
-- 1 Botol Minum 600ml
-    /pcs (Toko B)      Rp18.000
+- 2 Teh Botol (isi 24)
+    /dus (Toko Laris)  Rp70.000
+- 1 Kopi Sachet (isi 10)
+    /renceng           Rp12.000
 - 5 Beras Ramos 5kg
     /karung           Rp140.000
 - 3 Telur Ayam 1kg
     /kg (Agen Berkah)  Rp84.000
-- 1 Barang dengan harga
-    terjangkau
-    /dus (Toko Laris)  Rp35.000
+- 1 Botol Minum 600ml
+    /pcs (Toko B)      Rp18.000
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Total Barang: 12 item
-Total: Rp307.000
+Total: Rp324.000
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ```
 - **Format Struk Riwayat Pembelian (Dikelompokkan per Kategori)**:
   ```text
        RIWAYAT PEMBELIAN
-     Waktu: 21 Sep 2026, 11.45
+     Waktu: 24 Sep 2026, 14.15
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+===> MINUMAN
+- 2 Teh Botol (isi 24)
+    /dus (Toko Laris)  Rp70.000
+- 1 Kopi Sachet (isi 10)
+    /renceng           Rp12.000
 
 ===> SEMBAKO
 - 5 Beras Ramos 5kg
@@ -66,15 +73,9 @@ Total: Rp307.000
 - 3 Telur Ayam 1kg
     /kg (Agen Berkah)  Rp84.000
 
-===> PERABOTAN & PLASTIK
-- 2 Botol Minum 600ml
-    /pcs (Toko A)      Rp30.000
-- 1 Botol Minum 600ml
-    /pcs (Toko B)      Rp18.000
-
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Total Barang: 11 item
-Total: Rp272.000
+Total: Rp306.000
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
@@ -169,12 +170,14 @@ VITE_SUPABASE_ANON_KEY=anon-public-key-anda
 4. Buat tabel database:
    - `categories` (`id`, `user_id`, `name`, `created_at`)
    - `units` (`id`, `user_id`, `name`, `created_at`)
-   - `items` (`id`, `user_id`, `name`, `price`, `category_id`, `unit_id`, `store_name`, `quantity`, `is_selected`, `created_at`)
+   - `items` (`id`, `user_id`, `name`, `price`, `category_id`, `unit_id`, `store_name`, `pieces_per_unit`, `quantity`, `is_selected`, `created_at`)
    - `purchase_history` (`id`, `user_id`, `items` (JSONB), `purchased_at`, `created_at`)
-5. Jika tabel `items` sudah ada sebelumnya, tambahkan kolom `store_name`:
+5. Jika tabel `items` sudah ada sebelumnya, tambahkan kolom pendukung (`store_name` dan `pieces_per_unit`):
    ```sql
    ALTER TABLE items ADD COLUMN IF NOT EXISTS store_name TEXT DEFAULT '';
+   ALTER TABLE items ADD COLUMN IF NOT EXISTS pieces_per_unit INT DEFAULT NULL;
    ```
+   *(Aplikasi memiliki perlindungan fallback otomatis: jika kolom belum ditambahkan ke Supabase, sistem tetap menyimpan data tanpa error atau crash).*
 6. Aktifkan **Row Level Security (RLS)** dengan policy `auth.uid() = user_id`.
 7. Aktifkan fitur **Realtime** pada tabel-tabel tersebut.
 
@@ -242,7 +245,7 @@ src/
 │   ├── modals/
 │   │   ├── BluetoothGuideModal.jsx   # Panduan aktivasi Web Bluetooth di Linux
 │   │   ├── ConfirmExitModal.jsx      # Modal konfirmasi back button guard
-│   │   ├── ItemModal.jsx             # Form tambah & edit barang dengan input nama toko
+│   │   ├── ItemModal.jsx             # Form tambah & edit barang dengan input toko, isi paket, & modal eceran
 │   │   ├── PrintFallbackModal.jsx    # Opsi cetak browser jika Bluetooth tidak aktif
 │   │   └── PromptModal.jsx           # Modal kustom Kategori & Satuan ramah HP
 │   ├── AuthScreen.jsx          # Form login dual-mode (password instan & email OTP)

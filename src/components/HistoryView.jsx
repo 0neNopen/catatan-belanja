@@ -116,9 +116,23 @@ export default function HistoryView({
                               )}
                             </td>
                             <td>{item.category || '-'}</td>
-                            <td>/{item.unit || '-'}</td>
+                            <td>
+                              /{item.unit || '-'}
+                              {item.pieces_per_unit > 1 && (
+                                <span style={{ display: 'block', fontSize: '11px', color: 'var(--muted)' }}>
+                                  (isi {item.pieces_per_unit})
+                                </span>
+                              )}
+                            </td>
                             <td>{q}</td>
-                            <td>{p ? `Rp${p.toLocaleString('id-ID')}` : '—'}</td>
+                            <td>
+                              {p ? `Rp${p.toLocaleString('id-ID')}` : '—'}
+                              {item.pieces_per_unit > 1 && p > 0 && (
+                                <span style={{ display: 'block', fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>
+                                  @{Math.round(p / item.pieces_per_unit).toLocaleString('id-ID')}
+                                </span>
+                              )}
+                            </td>
                             <td>{p ? `Rp${(p * q).toLocaleString('id-ID')}` : '—'}</td>
                           </tr>
                         )

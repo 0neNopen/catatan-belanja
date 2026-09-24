@@ -66,10 +66,15 @@ export function formatReceiptItem(
   store,
   priceStr,
   includeStore = true,
-  lineWidth = 32
+  lineWidth = 32,
+  pieces = null
 ) {
+  // Jika memiliki rincian isi paket > 1, sematkan (isi ...) di baris 1 nama barang
+  const piecesNum = Number(pieces) || 0
+  const fullName = piecesNum > 1 ? `${name} (isi ${piecesNum})` : name
+
   // Baris 1: Nama barang dengan smart word-wrap rapi
-  const line1 = wrapItemName(qty, name, lineWidth)
+  const line1 = wrapItemName(qty, fullName, lineWidth)
 
   // Baris 2: Satuan, Nama Toko (opsional dlm kurung ASCII), dan Harga rata kanan
   const indent = '    '
@@ -78,7 +83,6 @@ export function formatReceiptItem(
   if (includeStore && store && store.trim()) {
     const cleanStore = store.trim()
     // Hitung sisa ruang maksimal untuk teks toko agar harga tidak terdorong keluar batas 32 karakter
-    // lineWidth (32) - indent (4) - unitText - priceStr - minSpace (1) - kurung ' ()' (3)
     const maxStoreLen = Math.max(4, lineWidth - indent.length - unitText.length - priceStr.length - 4)
     let formattedStore = cleanStore
     if (cleanStore.length > maxStoreLen) {
@@ -124,7 +128,8 @@ export function buildReceiptEscPos({
       const unitPrice = Number(item.price) || 0
       const subtotal = unitPrice * qty
       const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'
-      text += formatReceiptItem(qty, item.name, unit, store, priceStr, includeStore, 32)
+      const pieces = item.pieces_per_unit || null
+      text += formatReceiptItem(qty, item.name, unit, store, priceStr, includeStore, 32, pieces)
       total += subtotal
     })
   } else {
@@ -145,7 +150,8 @@ export function buildReceiptEscPos({
         const unitPrice = Number(item.price) || 0
         const subtotal = unitPrice * qty
         const priceStr = subtotal ? `Rp${subtotal.toLocaleString('id-ID')}` : 'Rp0'
-        text += formatReceiptItem(qty, item.name, unit, store, priceStr, includeStore, 32)
+        const pieces = item.pieces_per_unit || item.pieces || null
+        text += formatReceiptItem(qty, item.name, unit, store, priceStr, includeStore, 32, pieces)
         total += subtotal
       })
     })

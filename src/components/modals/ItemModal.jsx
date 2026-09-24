@@ -10,6 +10,10 @@ export default function ItemModal({
 }) {
   if (!isOpen) return null
 
+  const priceNum = Number(draft.price) || 0
+  const piecesNum = Number(draft.pieces_per_unit) || 0
+  const unitPrice = piecesNum > 1 && priceNum > 0 ? Math.round(priceNum / piecesNum) : 0
+
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <form className="modal" onSubmit={onSave} onMouseDown={(e) => e.stopPropagation()}>
@@ -48,17 +52,52 @@ export default function ItemModal({
           )}
         </label>
 
+        <div className="modal-grid-2">
+          <label>
+            Satuan
+            <select
+              value={draft.unitId}
+              onChange={(e) => setDraft({ ...draft, unitId: e.target.value })}
+            >
+              {units.map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Isi / Paket (Opsional)
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={draft.pieces_per_unit || ''}
+              onChange={(e) => setDraft({ ...draft, pieces_per_unit: e.target.value })}
+              placeholder="Contoh: 24"
+            />
+          </label>
+        </div>
+
         <label>
-          Harga
+          Harga Beli / Paket
           <input
             type="number"
             min="0"
             step="1"
             value={draft.price || ''}
             onChange={(e) => setDraft({ ...draft, price: e.target.value })}
-            placeholder="Contoh: 15000"
+            placeholder="Contoh: 32000"
           />
         </label>
+
+        {unitPrice > 0 && (
+          <div className="unit-calc-hint">
+            <span>💡 Modal eceran:</span>
+            <strong>@Rp{unitPrice.toLocaleString('id-ID')} / item</strong>
+          </div>
+        )}
 
         <label>
           Kategori
@@ -67,20 +106,6 @@ export default function ItemModal({
             onChange={(e) => setDraft({ ...draft, categoryId: e.target.value })}
           >
             {categories.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Satuan
-          <select
-            value={draft.unitId}
-            onChange={(e) => setDraft({ ...draft, unitId: e.target.value })}
-          >
-            {units.map((item) => (
               <option value={item.id} key={item.id}>
                 {item.name}
               </option>
