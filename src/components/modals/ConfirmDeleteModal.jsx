@@ -17,7 +17,7 @@ export default function ConfirmDeleteModal({
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>{isWarning ? '⚠️' : '🗑️'}</span>
+            {isWarning && <span>⚠️</span>}
             <span>{title}</span>
           </h2>
           <button type="button" onClick={onClose} aria-label="Tutup modal">
