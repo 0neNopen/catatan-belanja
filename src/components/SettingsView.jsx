@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import ConfirmDeleteModal from './modals/ConfirmDeleteModal'
 
 export default function SettingsView({
   categories,
@@ -16,6 +17,86 @@ export default function SettingsView({
   onDeleteUnit,
   onDeletePieceUnit,
 }) {
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'confirm',
+    onConfirm: null,
+  })
+
+  function handleDeleteCategoryClick(item) {
+    const used = items.filter((i) => i.category_id === item.id)
+    if (used.length > 0) {
+      const examples = used.slice(0, 3).map((i) => `"${i.name}"`).join(', ')
+      const more = used.length > 3 ? ', dsb.' : ''
+      setConfirmModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Kategori Masih Digunakan',
+        message: `Kategori "${item.name}" saat ini masih digunakan oleh ${used.length} barang belanjaan (${examples}${more}).\n\nKategori tidak dapat dihapus sebelum barang-barang tersebut diubah atau dihapus.\n\nTips: Jika Anda hanya ingin memperbaiki ejaan (typo), gunakan tombol "Edit".`,
+        onConfirm: null,
+      })
+      return
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Hapus Kategori?',
+      message: `Apakah Anda yakin ingin menghapus kategori "${item.name}"?\n\nTindakan ini permanen dan tidak dapat dibatalkan.`,
+      onConfirm: () => onDeleteCategory(item),
+    })
+  }
+
+  function handleDeleteUnitClick(item) {
+    const used = items.filter((i) => i.unit_id === item.id)
+    if (used.length > 0) {
+      const examples = used.slice(0, 3).map((i) => `"${i.name}"`).join(', ')
+      const more = used.length > 3 ? ', dsb.' : ''
+      setConfirmModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Satuan Masih Digunakan',
+        message: `Satuan "/${item.name}" saat ini masih digunakan oleh ${used.length} barang belanjaan (${examples}${more}).\n\nSatuan tidak dapat dihapus sebelum barang-barang tersebut diubah atau dihapus.\n\nTips: Jika Anda hanya ingin memperbaiki ejaan (typo), gunakan tombol "Edit".`,
+        onConfirm: null,
+      })
+      return
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Hapus Satuan Belanja?',
+      message: `Apakah Anda yakin ingin menghapus satuan "/${item.name}"?\n\nTindakan ini permanen dan tidak dapat dibatalkan.`,
+      onConfirm: () => onDeleteUnit(item),
+    })
+  }
+
+  function handleDeletePieceUnitClick(item) {
+    const used = items.filter((i) => i.piece_unit === item.name)
+    if (used.length > 0) {
+      const examples = used.slice(0, 3).map((i) => `"${i.name}"`).join(', ')
+      const more = used.length > 3 ? ', dsb.' : ''
+      setConfirmModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Satuan Eceran Masih Digunakan',
+        message: `Satuan eceran "${item.name}" saat ini masih digunakan oleh ${used.length} barang belanjaan (${examples}${more}).\n\nSatuan eceran tidak dapat dihapus sebelum barang-barang tersebut diubah atau dihapus.\n\nTips: Jika Anda hanya ingin memperbaiki ejaan (typo), gunakan tombol "Edit".`,
+        onConfirm: null,
+      })
+      return
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Hapus Satuan Eceran?',
+      message: `Apakah Anda yakin ingin menghapus satuan eceran "${item.name}"?\n\nTindakan ini permanen dan tidak dapat dibatalkan.`,
+      onConfirm: () => onDeletePieceUnit(item),
+    })
+  }
+
   return (
     <section className="settings">
       <div className="section-title">
@@ -30,14 +111,7 @@ export default function SettingsView({
           items={categories}
           onAdd={onOpenAddCategory}
           onEdit={onOpenEditCategory}
-          onDelete={(item) => {
-            if (items.some((i) => i.category_id === item.id)) {
-              return window.alert(
-                'Kategori masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'
-              )
-            }
-            onDeleteCategory(item)
-          }}
+          onDelete={handleDeleteCategoryClick}
         />
         <SettingBlock
           title="Satuan Belanja / Paket"
@@ -46,14 +120,7 @@ export default function SettingsView({
           prefix="/"
           onAdd={onOpenAddUnit}
           onEdit={onOpenEditUnit}
-          onDelete={(item) => {
-            if (items.some((i) => i.unit_id === item.id)) {
-              return window.alert(
-                'Satuan masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'
-              )
-            }
-            onDeleteUnit(item)
-          }}
+          onDelete={handleDeleteUnitClick}
         />
         <SettingBlock
           title="Satuan Isi / Eceran"
@@ -62,17 +129,19 @@ export default function SettingsView({
           prefix=""
           onAdd={onOpenAddPieceUnit}
           onEdit={onOpenEditPieceUnit}
-          onDelete={(item) => {
-            if (items.some((i) => i.piece_unit === item.name)) {
-              return window.alert(
-                'Satuan isi ini masih digunakan oleh barang. Hapus atau ubah barang tersebut terlebih dahulu.'
-              )
-            }
-            onDeletePieceUnit(item)
-          }}
+          onDelete={handleDeletePieceUnitClick}
         />
       </div>
       <PasswordSettingBlock />
+
+      <ConfirmDeleteModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </section>
   )
 }
