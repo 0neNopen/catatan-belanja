@@ -1174,8 +1174,41 @@ button {
   gap: 12px;
 }
 
-.btn-danger-sm,
-.setting-row button {
+.setting-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-edit-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f6ec;
+  color: var(--green);
+  border: 1px solid #d2ded0;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  box-shadow: 0 1px 2px rgba(23, 97, 72, 0.05);
+  white-space: nowrap;
+  user-select: none;
+  line-height: 1.2;
+}
+
+.btn-edit-sm:hover {
+  background: #e2edd9;
+  border-color: #bcd0b8;
+  color: #114c38;
+}
+
+.btn-edit-sm:active {
+  transform: scale(0.96);
+}
+
+.btn-danger-sm {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1193,16 +1226,14 @@ button {
   line-height: 1.2;
 }
 
-.btn-danger-sm:hover,
-.setting-row button:hover {
+.btn-danger-sm:hover {
   background: #fbe3df;
   border-color: #f1bcb2;
   color: #94271c;
   box-shadow: 0 2px 5px rgba(184, 58, 46, 0.1);
 }
 
-.btn-danger-sm:active,
-.setting-row button:active {
+.btn-danger-sm:active {
   transform: scale(0.96);
 }
 

@@ -9,6 +9,9 @@ export default function SettingsView({
   onOpenAddCategory,
   onOpenAddUnit,
   onOpenAddPieceUnit,
+  onOpenEditCategory,
+  onOpenEditUnit,
+  onOpenEditPieceUnit,
   onDeleteCategory,
   onDeleteUnit,
   onDeletePieceUnit,
@@ -26,6 +29,7 @@ export default function SettingsView({
           title="Kategori"
           items={categories}
           onAdd={onOpenAddCategory}
+          onEdit={onOpenEditCategory}
           onDelete={(item) => {
             if (items.some((i) => i.category_id === item.id)) {
               return window.alert(
@@ -41,6 +45,7 @@ export default function SettingsView({
           items={units}
           prefix="/"
           onAdd={onOpenAddUnit}
+          onEdit={onOpenEditUnit}
           onDelete={(item) => {
             if (items.some((i) => i.unit_id === item.id)) {
               return window.alert(
@@ -56,6 +61,7 @@ export default function SettingsView({
           items={pieceUnits}
           prefix=""
           onAdd={onOpenAddPieceUnit}
+          onEdit={onOpenEditPieceUnit}
           onDelete={(item) => {
             if (items.some((i) => i.piece_unit === item.name)) {
               return window.alert(
@@ -71,7 +77,7 @@ export default function SettingsView({
   )
 }
 
-function SettingBlock({ title, description, items, prefix = '', onAdd, onDelete }) {
+function SettingBlock({ title, description, items, prefix = '', onAdd, onEdit, onDelete }) {
   return (
     <div className="setting-block">
       <div className="block-head">
@@ -91,13 +97,26 @@ function SettingBlock({ title, description, items, prefix = '', onAdd, onDelete 
             {prefix}
             {item.name}
           </span>
-          <button
-            className="btn-action btn-danger-sm"
-            onClick={() => onDelete(item)}
-            aria-label={`Hapus ${item.name}`}
-          >
-            Hapus
-          </button>
+          <div className="setting-row-actions">
+            {onEdit && (
+              <button
+                type="button"
+                className="btn-action btn-edit-sm"
+                onClick={() => onEdit(item)}
+                aria-label={`Ubah ${item.name}`}
+              >
+                Edit
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn-action btn-danger-sm"
+              onClick={() => onDelete(item)}
+              aria-label={`Hapus ${item.name}`}
+            >
+              Hapus
+            </button>
+          </div>
         </div>
       ))}
     </div>

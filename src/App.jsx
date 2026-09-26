@@ -97,6 +97,8 @@ export default function App() {
     label: '',
     title: '',
     placeholder: '',
+    initialValue: '',
+    editingItem: null,
   })
 
   // Manajemen Quantity (Hybrid Cloud + LocalStorage)
@@ -595,20 +597,73 @@ export default function App() {
           : table === 'units'
           ? 'Contoh: dus, renceng, karung'
           : 'Contoh: botol, buah, pcs, sachet',
+      initialValue: '',
+      editingItem: null,
+    })
+  }
+
+  function handleOpenEditPrompt(table, label, item) {
+    setPromptConfig({
+      isOpen: true,
+      table,
+      label,
+      title: `Ubah ${label}`,
+      placeholder: `Nama ${label}...`,
+      initialValue: item.name || '',
+      editingItem: item,
     })
   }
 
   async function handleConfirmPrompt(name) {
+    const isEdit = Boolean(promptConfig.editingItem)
+    const editingItem = promptConfig.editingItem
+    const table = promptConfig.table
+    const label = promptConfig.label
     setPromptConfig((p) => ({ ...p, isOpen: false }))
-    const res = await run(() => supabase.from(promptConfig.table).insert({ name, user_id: session.user.id }))
-    if (res?.error && promptConfig.table === 'piece_units') {
-      const newLocalId = 'def-' + Date.now()
-      setData((prev) => ({
-        ...prev,
-        piece_units: [{ id: newLocalId, name }, ...prev.piece_units],
-      }))
+
+    if (isEdit) {
+      if (editingItem.name === name) return
+
+      if (table === 'piece_units') {
+        if (String(editingItem.id).startsWith('def-')) {
+          setData((prev) => ({
+            ...prev,
+            piece_units: prev.piece_units.map((pu) =>
+              pu.id === editingItem.id ? { ...pu, name } : pu
+            ),
+            items: prev.items.map((it) =>
+              it.piece_unit === editingItem.name ? { ...it, piece_unit: name } : it
+            ),
+          }))
+          setToast(`${label} berhasil diubah!`)
+          setTimeout(() => setToast(''), 2200)
+          return
+        }
+
+        await run(async () => {
+          const res = await supabase.from('piece_units').update({ name }).eq('id', editingItem.id)
+          await supabase
+            .from('items')
+            .update({ piece_unit: name })
+            .eq('piece_unit', editingItem.name)
+            .eq('user_id', session.user.id)
+          return res
+        })
+      } else {
+        await run(() => supabase.from(table).update({ name }).eq('id', editingItem.id))
+      }
+      setToast(`${label} berhasil diubah!`)
+    } else {
+      const res = await run(() => supabase.from(table).insert({ name, user_id: session.user.id }))
+      if (res?.error && table === 'piece_units') {
+        const newLocalId = 'def-' + Date.now()
+        setData((prev) => ({
+          ...prev,
+          piece_units: [{ id: newLocalId, name }, ...prev.piece_units],
+        }))
+      }
+      setToast(`${label} berhasil ditambahkan!`)
     }
-    setToast(`${promptConfig.label} berhasil ditambahkan!`)
     setTimeout(() => setToast(''), 2200)
   }
 
@@ -959,6 +1014,9 @@ export default function App() {
             onOpenAddCategory={() => handleOpenPrompt('categories', 'kategori')}
             onOpenAddUnit={() => handleOpenPrompt('units', 'satuan belanja')}
             onOpenAddPieceUnit={() => handleOpenPrompt('piece_units', 'satuan eceran')}
+            onOpenEditCategory={(item) => handleOpenEditPrompt('categories', 'kategori', item)}
+            onOpenEditUnit={(item) => handleOpenEditPrompt('units', 'satuan belanja', item)}
+            onOpenEditPieceUnit={(item) => handleOpenEditPrompt('piece_units', 'satuan eceran', item)}
             onDeleteCategory={(item) => run(() => supabase.from('categories').delete().eq('id', item.id))}
             onDeleteUnit={(item) => run(() => supabase.from('units').delete().eq('id', item.id))}
             onDeletePieceUnit={(item) => {
@@ -999,6 +1057,7 @@ export default function App() {
         title={promptConfig.title}
         label={promptConfig.label}
         placeholder={promptConfig.placeholder}
+        initialValue={promptConfig.initialValue || ''}
         onConfirm={handleConfirmPrompt}
         onClose={() => setPromptConfig((p) => ({ ...p, isOpen: false }))}
       />
