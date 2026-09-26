@@ -14,6 +14,7 @@ import PromptModal from './components/modals/PromptModal'
 import PrintFallbackModal from './components/modals/PrintFallbackModal'
 import BluetoothGuideModal from './components/modals/BluetoothGuideModal'
 import ConfirmExitModal from './components/modals/ConfirmExitModal'
+import ConfirmDeleteModal from './components/modals/ConfirmDeleteModal'
 
 import { printReceiptBluetooth } from './utils/bluetoothPrinter'
 
@@ -72,6 +73,13 @@ export default function App() {
   const isPullingRef = useRef(false)
   const wakeRetryRef = useRef(null)
   const hasSeededPieceUnitsRef = useRef(false)
+  const [confirmDeleteConfig, setConfirmDeleteConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'confirm',
+    onConfirm: null,
+  })
 
   // Opsi Cetak Fleksibel (Toko di Struk)
   const [includeStoreInPrint, setIncludeStoreInPrint] = useState(() => {
@@ -978,10 +986,18 @@ export default function App() {
               setModal('item')
             }}
             onDeleteItem={(item) => {
-              const label = item.store_name ? `"${item.name}" (${item.store_name})` : `"${item.name}"`
-              if (window.confirm(`Hapus barang ${label}?`)) {
-                run(() => supabase.from('items').delete().eq('id', item.id))
-              }
+              const storeInfo = item.store_name ? ` (Toko: ${item.store_name})` : ''
+              const activeWarning = item.is_selected
+                ? '\n\n⚠️ Catatan: Barang ini saat ini sedang dipilih dalam daftar belanja aktif.'
+                : ''
+
+              setConfirmDeleteConfig({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Hapus Barang?',
+                message: `Apakah Anda yakin ingin menghapus "${item.name}"${storeInfo} dari daftar barang warung?${activeWarning}\n\nTindakan ini permanen dan tidak dapat dibatalkan.`,
+                onConfirm: () => run(() => supabase.from('items').delete().eq('id', item.id)),
+              })
             }}
             onGoToSettings={() => setView('settings')}
             onPrintSelected={() => printReceipt('active')}
@@ -998,9 +1014,18 @@ export default function App() {
             setExpandedHistory={setExpandedHistory}
             onPrint={(entry) => printReceipt('history', entry)}
             onDelete={(entry) => {
-              if (window.confirm('Hapus riwayat pembelian ini?')) {
-                run(() => supabase.from('purchase_history').delete().eq('id', entry.id))
-              }
+              const dateStr = new Date(entry.purchased_at).toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })
+              setConfirmDeleteConfig({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Hapus Riwayat Belanja?',
+                message: `Apakah Anda yakin ingin menghapus riwayat belanja tanggal ${dateStr} (${entry.items?.length || 0} barang)?\n\nData riwayat yang dihapus tidak dapat dipulihkan kembali.`,
+                onConfirm: () => run(() => supabase.from('purchase_history').delete().eq('id', entry.id)),
+              })
             }}
           />
         )}
@@ -1082,6 +1107,15 @@ export default function App() {
         isOpen={modal === 'confirm-exit'}
         onStay={() => setModal(null)}
         onExit={handleConfirmExit}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={confirmDeleteConfig.isOpen}
+        title={confirmDeleteConfig.title}
+        message={confirmDeleteConfig.message}
+        type={confirmDeleteConfig.type}
+        onConfirm={confirmDeleteConfig.onConfirm}
+        onClose={() => setConfirmDeleteConfig((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   )
