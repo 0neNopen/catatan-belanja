@@ -90,6 +90,77 @@ body {
   color: #a2aea7;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #f6f8f5;
+  color: var(--green);
+  border: 1px solid #d4ddd3;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  line-height: 1.2;
+}
+
+.nav-refresh:hover {
+  background: #eef5ea;
+  border-color: #bcd0b8;
+  color: #114c38;
+}
+
+.nav-refresh:active {
+  transform: scale(0.96);
+}
+
+.nav-refresh.is-spinning .refresh-icon {
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pull-to-refresh-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #eef3e9;
+  color: var(--green);
+  font: 600 12px 'DM Mono', monospace;
+  transition: height 0.08s ease-out;
+  border-bottom: 1px solid var(--line);
+}
+
+.pull-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pull-icon.is-ready {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .nav-logout,
 .icon-button {
   display: inline-flex;
@@ -1277,10 +1348,27 @@ button {
 @media (max-width: 600px) {
   .topbar {
     height: 66px;
-    padding: 0 18px;
+    padding: 0 14px;
+    gap: 10px;
+  }
+  .sync {
+    font-size: 11px;
   }
   .sync-note {
     display: none;
+  }
+  .topbar-actions {
+    gap: 6px;
+  }
+  .nav-refresh {
+    padding: 6px 8px;
+  }
+  .nav-refresh-text {
+    display: none;
+  }
+  .nav-logout {
+    padding: 6px 10px;
+    font-size: 11px;
   }
   main {
     padding: 32px 16px 60px;

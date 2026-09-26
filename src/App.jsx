@@ -31,6 +31,15 @@ const DEFAULT_PIECE_UNITS = [
 const emptyData = { categories: [], units: [], piece_units: DEFAULT_PIECE_UNITS, items: [], history: [] }
 const ITEMS_PER_PAGE = 10
 
+function sortItemsBySelectedAndId(items) {
+  return [...items].sort((a, b) => {
+    if (Boolean(a.is_selected) !== Boolean(b.is_selected)) {
+      return a.is_selected ? -1 : 1
+    }
+    return (Number(b.id) || 0) - (Number(a.id) || 0)
+  })
+}
+
 export default function App() {
   const [session, setSession] = useState(null)
   const [data, setData] = useState(emptyData)
@@ -57,6 +66,10 @@ export default function App() {
   const [toast, setToast] = useState('')
   const [dbWaking, setDbWaking] = useState(false)
   const [wakeCountdown, setWakeCountdown] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const [pullDistance, setPullDistance] = useState(0)
+  const touchStartRef = useRef(0)
+  const isPullingRef = useRef(false)
   const wakeRetryRef = useRef(null)
   const hasSeededPieceUnitsRef = useRef(false)
 
@@ -404,6 +417,66 @@ export default function App() {
     }
   }
 
+  async function handleManualRefresh() {
+    if (refreshing) return
+    setRefreshing(true)
+    try {
+      await loadData()
+      setToast('Data berhasil disegarkan!')
+    } catch {
+      setToast('Gagal menyegarkan data.')
+    } finally {
+      window.setTimeout(() => setRefreshing(false), 500)
+      window.setTimeout(() => setToast(''), 2500)
+    }
+  }
+
+  // Pull-to-refresh untuk perangkat sentuh / PWA
+  useEffect(() => {
+    if (!session) return
+
+    function handleTouchStart(e) {
+      if (window.scrollY <= 4) {
+        touchStartRef.current = e.touches[0].clientY
+        isPullingRef.current = true
+      } else {
+        isPullingRef.current = false
+      }
+    }
+
+    function handleTouchMove(e) {
+      if (!isPullingRef.current) return
+      const currentY = e.touches[0].clientY
+      const diff = currentY - touchStartRef.current
+      if (diff > 0 && window.scrollY <= 4) {
+        const distance = Math.min(diff * 0.4, 75)
+        setPullDistance(distance)
+      } else {
+        setPullDistance(0)
+      }
+    }
+
+    function handleTouchEnd() {
+      if (!isPullingRef.current) return
+      isPullingRef.current = false
+      setPullDistance((dist) => {
+        if (dist >= 55) {
+          handleManualRefresh()
+        }
+        return 0
+      })
+    }
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
+    window.addEventListener('touchend', handleTouchEnd, { passive: true })
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [session, refreshing])
+
   const categoryNames = ['Semua', ...data.categories.map((item) => item.name)]
 
   // Saran Nama Toko dari data yang sudah ada
@@ -599,14 +672,18 @@ export default function App() {
     }
     setData((current) => ({
       ...current,
-      items: current.items.map((old) => (old.id === item.id ? { ...old, is_selected: next } : old)),
+      items: sortItemsBySelectedAndId(
+        current.items.map((old) => (old.id === item.id ? { ...old, is_selected: next } : old))
+      ),
     }))
 
     const { error: result } = await supabase.from('items').update({ is_selected: next }).eq('id', item.id)
     if (result) {
       setData((current) => ({
         ...current,
-        items: current.items.map((old) => (old.id === item.id ? { ...old, is_selected: !next } : old)),
+        items: sortItemsBySelectedAndId(
+          current.items.map((old) => (old.id === item.id ? { ...old, is_selected: !next } : old))
+        ),
       }))
       setToast('Gagal menyimpan checklist. Perubahan dibatalkan.')
     } else {
@@ -675,7 +752,18 @@ export default function App() {
 
   return (
     <div className={`app-shell ${printHistoryId ? 'is-printing-history' : ''}`}>
-      <TopBar session={session} />
+      <TopBar session={session} onRefresh={handleManualRefresh} isRefreshing={refreshing} />
+
+      {pullDistance > 0 && (
+        <div
+          className="pull-to-refresh-indicator"
+          style={{ height: `${pullDistance}px`, opacity: Math.min(pullDistance / 45, 1) }}
+        >
+          <span className={`pull-icon ${pullDistance >= 55 ? 'is-ready' : ''}`}>
+            {pullDistance >= 55 ? 'Lepaskan untuk menyegarkan ⟳' : 'Tarik ke bawah untuk menyegarkan ↓'}
+          </span>
+        </div>
+      )}
 
       {printHistoryId && (
         <div className="history-print-view">
