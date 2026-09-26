@@ -7,6 +7,7 @@ import ItemList from './components/ItemList'
 import HistoryView from './components/HistoryView'
 import SettingsView from './components/SettingsView'
 import AuthScreen from './components/AuthScreen'
+import OfflineScreen from './components/OfflineScreen'
 import { Notice, DbWakingScreen } from './components/Notice'
 
 import ItemModal from './components/modals/ItemModal'
@@ -65,6 +66,7 @@ export default function App() {
   const [printHistoryId, setPrintHistoryId] = useState(null)
   const [pendingPrint, setPendingPrint] = useState(null)
   const [toast, setToast] = useState('')
+  const [isOffline, setIsOffline] = useState(() => (typeof navigator !== 'undefined' ? !navigator.onLine : false))
   const [dbWaking, setDbWaking] = useState(false)
   const [wakeCountdown, setWakeCountdown] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
@@ -204,6 +206,29 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false)
+      setToast('Koneksi internet kembali normal.')
+      if (session) {
+        loadData({ isRetry: true })
+      }
+    }
+
+    const handleOffline = () => {
+      setIsOffline(true)
+      setToast('Koneksi terputus. Anda dalam mode offline.')
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [session])
+
+  useEffect(() => {
     if (session) loadData()
   }, [session])
 
@@ -306,6 +331,10 @@ export default function App() {
   }, [session])
 
   async function loadData({ isRetry = false } = {}) {
+    if (!navigator.onLine) {
+      setIsOffline(true)
+      return
+    }
     setError('')
     const [categories, units, pieceUnitsRes, items, history] = await Promise.all([
       supabase.from('categories').select('*').order('created_at', { ascending: false }),
@@ -321,6 +350,11 @@ export default function App() {
 
     const failure = [categories, units, items, history].find((result) => result.error)
     if (failure) {
+      if (!navigator.onLine) {
+        setIsOffline(true)
+        return
+      }
+
       const isDbWaking =
         !isRetry &&
         (failure.error.message?.toLowerCase().includes('fetch') ||
@@ -331,6 +365,10 @@ export default function App() {
           failure.error.status === 0)
 
       if (isDbWaking) {
+        if (!navigator.onLine) {
+          setIsOffline(true)
+          return
+        }
         setDbWaking(true)
         let attempts = 0
         const maxAttempts = 12
@@ -351,6 +389,11 @@ export default function App() {
           }, 1000)
 
           wakeRetryRef.current = window.setTimeout(async () => {
+            if (!navigator.onLine) {
+              setDbWaking(false)
+              setIsOffline(true)
+              return
+            }
             const [c, u, pu, i, h] = await Promise.all([
               supabase.from('categories').select('*').order('created_at', { ascending: false }),
               supabase.from('units').select('*').order('created_at', { ascending: false }),
@@ -418,6 +461,11 @@ export default function App() {
   }
 
   async function run(action) {
+    if (!navigator.onLine) {
+      setIsOffline(true)
+      setError('Tidak ada koneksi internet. Hubungkan internet untuk menyimpan perubahan.')
+      return
+    }
     setError('')
     const { error: result } = await action()
     if (result) {
@@ -429,9 +477,16 @@ export default function App() {
 
   async function handleManualRefresh() {
     if (refreshing) return
+    if (!navigator.onLine) {
+      setIsOffline(true)
+      setToast('Tidak ada koneksi internet. Aktifkan data seluler atau WiFi.')
+      window.setTimeout(() => setToast(''), 3000)
+      return
+    }
     setRefreshing(true)
     try {
-      await loadData()
+      await loadData({ isRetry: true })
+      setIsOffline(false)
       setToast('Data berhasil disegarkan!')
     } catch {
       setToast('Gagal menyegarkan data.')
@@ -729,6 +784,12 @@ export default function App() {
   }
 
   async function toggleItem(item) {
+    if (!navigator.onLine) {
+      setIsOffline(true)
+      setToast('Tidak ada koneksi internet. Aktifkan internet untuk mencentang barang.')
+      window.setTimeout(() => setToast(''), 3000)
+      return
+    }
     const next = !item.is_selected
     if (next && !quantities[item.id]) {
       changeQty(item.id, 0)
@@ -805,17 +866,43 @@ export default function App() {
     return <Notice title="Memuat Catatan Belanja...">Menghubungkan ke Supabase.</Notice>
   }
 
+  if (isOffline && (!data.items || data.items.length === 0)) {
+    return <OfflineScreen onRetry={handleManualRefresh} isRetrying={refreshing} />
+  }
+
   if (dbWaking) {
     return <DbWakingScreen wakeCountdown={wakeCountdown} />
   }
 
   if (!session) {
+    if (isOffline) {
+      return <OfflineScreen onRetry={handleManualRefresh} isRetrying={refreshing} />
+    }
     return <AuthScreen />
   }
 
   return (
     <div className={`app-shell ${printHistoryId ? 'is-printing-history' : ''}`}>
-      <TopBar session={session} onRefresh={handleManualRefresh} isRefreshing={refreshing} />
+      <TopBar
+        session={session}
+        onRefresh={handleManualRefresh}
+        isRefreshing={refreshing}
+        isOffline={isOffline}
+      />
+
+      {isOffline && (
+        <div className="offline-banner" role="alert">
+          <span>📶 Anda sedang offline. Hubungkan ke internet untuk memperbarui data.</span>
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            className="offline-banner-btn"
+            disabled={refreshing}
+          >
+            {refreshing ? '⟳ Memeriksa...' : '⟳ Coba Lagi'}
+          </button>
+        </div>
+      )}
 
       {pullDistance > 0 && (
         <div

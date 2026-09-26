@@ -1,6 +1,6 @@
 import { supabase } from '../supabase'
 
-export default function TopBar({ session, onRefresh, isRefreshing }) {
+export default function TopBar({ session, onRefresh, isRefreshing, isOffline }) {
   return (
     <header className="topbar">
       <div className="brand">
@@ -11,8 +11,17 @@ export default function TopBar({ session, onRefresh, isRefreshing }) {
         </span>
       </div>
       <div className="sync">
-        <span className="sync-dot" /> Tersinkron cloud{' '}
-        <span className="sync-note">· {session?.user?.email}</span>
+        {isOffline ? (
+          <>
+            <span className="sync-dot offline" /> <span style={{ color: '#b75300', fontWeight: 600 }}>Offline</span>{' '}
+            <span className="sync-note">· Belum tersambung</span>
+          </>
+        ) : (
+          <>
+            <span className="sync-dot" /> Tersinkron cloud{' '}
+            <span className="sync-note">· {session?.user?.email}</span>
+          </>
+        )}
       </div>
       <div className="topbar-actions">
         <button

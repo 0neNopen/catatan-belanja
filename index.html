@@ -15,7 +15,126 @@
     <title>Catatan Belanja</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Fallback offline jika script JS tidak dapat dimuat tanpa internet (digantikan otomatis saat React aktif) -->
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #f2f4ed;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          color: #17332c;
+          -webkit-font-smoothing: antialiased;
+        }
+        .cb-offline-screen {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px 16px;
+          box-sizing: border-box;
+          background: radial-gradient(circle at 80% 10%, #e4edbd 0, transparent 25rem), #f2f4ed;
+        }
+        .cb-offline-card {
+          width: 100%;
+          max-width: 410px;
+          background: #ffffff;
+          border: 1px solid rgba(23, 51, 44, 0.12);
+          border-radius: 14px;
+          padding: 34px 28px;
+          box-shadow: 0 18px 70px rgba(23, 51, 44, 0.09);
+          box-sizing: border-box;
+          text-align: center;
+        }
+        .cb-offline-logo {
+          width: 44px;
+          height: 44px;
+          margin: 0 auto 16px;
+          display: block;
+        }
+        .cb-offline-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #fdf3e7;
+          border: 1px solid #fad390;
+          color: #b75300;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          padding: 4px 12px;
+          border-radius: 999px;
+          margin-bottom: 16px;
+        }
+        .cb-offline-title {
+          font-size: 32px;
+          line-height: 1.1;
+          letter-spacing: -0.04em;
+          margin: 0 0 14px;
+          color: #17332c;
+        }
+        .cb-offline-title em {
+          font-style: normal;
+          color: #7d9d35;
+        }
+        .cb-offline-desc {
+          font-size: 14px;
+          line-height: 1.6;
+          color: #556b64;
+          margin: 0 0 24px;
+        }
+        .cb-offline-btn {
+          width: 100%;
+          box-sizing: border-box;
+          height: 48px;
+          background: #17332c;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: background 0.15s ease;
+        }
+        .cb-offline-btn:hover {
+          background: #254d42;
+        }
+        .cb-offline-btn:active {
+          transform: scale(0.98);
+        }
+        .cb-offline-tip {
+          font-size: 12px;
+          color: #83968f;
+          margin-top: 18px;
+          line-height: 1.4;
+        }
+      </style>
+      <div class="cb-offline-screen">
+        <div class="cb-offline-card">
+          <img src="/favicon.svg" alt="Catatan Belanja" class="cb-offline-logo" />
+          <div class="cb-offline-badge">
+            <span>📶</span> Mode Offline
+          </div>
+          <h1 class="cb-offline-title">
+            Tidak Ada<br /><em>Koneksi Internet</em>
+          </h1>
+          <p class="cb-offline-desc">
+            Aplikasi membutuhkan jaringan internet untuk memuat data catatan belanja Anda. Silakan nyalakan data seluler atau hubungkan ke WiFi.
+          </p>
+          <button type="button" class="cb-offline-btn" onclick="window.location.reload()">
+            <span>⟳</span> Coba Sambungkan Lagi
+          </button>
+          <p class="cb-offline-tip">
+            Tip: Pastikan mode pesawat nonaktif dan kuota data Anda aktif.
+          </p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'catatan-belanja-v1'
+const CACHE_NAME = 'catatan-belanja-v2'
 const ASSETS_TO_PRECACHE = [
   '/',
   '/index.html',
