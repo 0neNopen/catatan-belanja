@@ -345,7 +345,7 @@ export default function App() {
         .select('*, categories(name), units(name)')
         .order('is_selected', { ascending: false })
         .order('id', { ascending: false }),
-      supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }).limit(30),
+      supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }).limit(25),
     ])
 
     const failure = [categories, units, items, history].find((result) => result.error)
@@ -403,7 +403,7 @@ export default function App() {
                 .select('*, categories(name), units(name)')
                 .order('is_selected', { ascending: false })
                 .order('id', { ascending: false }),
-              supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }).limit(30),
+              supabase.from('purchase_history').select('*').order('purchased_at', { ascending: false }).limit(25),
             ])
             const retryFailure = [c, u, i, h].find((r) => r.error)
             if (retryFailure) {
@@ -775,12 +775,57 @@ export default function App() {
         return updated
       })
 
+      // Auto-cleanup: Batasi maksimal 25 riwayat belanja terbaru untuk menjaga kapasitas & performa database
+      try {
+        const { data: allHistory } = await supabase
+          .from('purchase_history')
+          .select('id, purchased_at')
+          .eq('user_id', session.user.id)
+          .order('purchased_at', { ascending: false })
+
+        const MAX_HISTORY_LIMIT = 25
+        if (allHistory && allHistory.length > MAX_HISTORY_LIMIT) {
+          const idsToDelete = allHistory.slice(MAX_HISTORY_LIMIT).map((h) => h.id)
+          if (idsToDelete.length > 0) {
+            await supabase.from('purchase_history').delete().in('id', idsToDelete)
+          }
+        }
+      } catch (cleanupErr) {
+        console.warn('Auto-cleanup history error (non-fatal):', cleanupErr)
+      }
+
       await loadData()
       setTimeout(() => setToast(''), 2500)
     } catch (err) {
       console.error('markBought error:', err)
       setError(err.message || 'Terjadi kesalahan saat memproses selesai belanja.')
     }
+  }
+
+  async function cleanupHistory() {
+    if (!session?.user?.id) return
+    try {
+      const { data: allHistory } = await supabase
+        .from('purchase_history')
+        .select('id, purchased_at')
+        .eq('user_id', session.user.id)
+        .order('purchased_at', { ascending: false })
+
+      const MAX_HISTORY_LIMIT = 25
+      if (allHistory && allHistory.length > MAX_HISTORY_LIMIT) {
+        const idsToDelete = allHistory.slice(MAX_HISTORY_LIMIT).map((h) => h.id)
+        if (idsToDelete.length > 0) {
+          await supabase.from('purchase_history').delete().in('id', idsToDelete)
+          await loadData()
+          setToast(`Berhasil membersihkan ${idsToDelete.length} riwayat lama.`)
+        }
+      } else {
+        setToast('Riwayat sudah optimal (maksimal 25 riwayat).')
+      }
+    } catch {
+      setToast('Gagal membersihkan riwayat.')
+    }
+    setTimeout(() => setToast(''), 2500)
   }
 
   async function toggleItem(item) {
@@ -1123,6 +1168,7 @@ export default function App() {
             units={data.units}
             pieceUnits={data.piece_units || []}
             items={data.items}
+            historyCount={data.history.length}
             onOpenAddCategory={() => handleOpenPrompt('categories', 'kategori')}
             onOpenAddUnit={() => handleOpenPrompt('units', 'satuan belanja')}
             onOpenAddPieceUnit={() => handleOpenPrompt('piece_units', 'satuan eceran')}
@@ -1140,6 +1186,11 @@ export default function App() {
                 return
               }
               run(() => supabase.from('piece_units').delete().eq('id', item.id))
+            }}
+            onCleanupHistory={cleanupHistory}
+            onToast={(msg) => {
+              setToast(msg)
+              setTimeout(() => setToast(''), 2500)
             }}
           />
         )}

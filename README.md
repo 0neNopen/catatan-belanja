@@ -81,13 +81,13 @@ Total: Rp306.000
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
-### 5. Banner "Selesai Belanja" & Riwayat Pembelian (Purchase History)
+### 5. Banner "Selesai Belanja" & Pembersih Riwayat Belanja Otomatis (Maks. 25 Transaksi)
 - **Banner Interaktif**: Desain banner modern dengan kontras tinggi, menampilkan status dinamis jumlah barang yang dipilih, serta tombol yang nyaman ditekan di HP.
 - **Integritas Transaksi Aman**: Memverifikasi penyimpanan arsip riwayat transaksi secara ketat sebelum mereset centang daftar belanjaan.
 - **Detail Rinci dengan Kolom Toko**: Riwayat memuat tanggal transaksi, rincian barang, toko pembelian, kategori, satuan, jumlah beli (qty), harga satuan, dan subtotal.
 - **Filter Waktu**: Filter riwayat berdasarkan Semua, Hari ini, 7 hari terakhir, atau Bulan ini.
-- **Optimasi Kuota (Limit 30 Transaksi)**: Query dibatasi maksimal 30 transaksi terakhir sehingga konsumsi database Supabase super ringan dan aplikasi tetap gesit selamanya.
-- **Cetak Ulang & Hapus Riwayat**: Kemudahan mencetak ulang struk riwayat kapan saja atau menghapus arsip yang sudah tidak diperlukan.
+- **Pembersihan Otomatis (Maksimal 25 Transaksi)**: Sistem otomatis membatasi dan membersihkan transaksi ke-26 dan seterusnya setiap kali selesai belanja agar database Supabase tetap bersih, ringan, dan cepat selamanya. Tersedia juga tombol *"Optimalkan Riwayat"* di menu Pengaturan.
+- **Cetak Ulang & Hapus Riwayat**: Kemudahan mencetak ulang struk riwayat kapan saja atau menghapus arsip secara mandiri dengan modal konfirmasi aman.
 
 ### 6. Branding & Logo Resmi
 - Dilengkapi logo vektor SVG resmi (ikon tas belanja dengan checklist centang hijau) yang terintegrasi pada Favicon browser, topbar aplikasi, serta halaman login.
@@ -110,12 +110,24 @@ Total: Rp306.000
 - **GitHub Actions Keep-Alive**: Otomatisasi cron job yang melakukan ping ke Supabase REST API setiap 5 hari sekali agar project Supabase Free Tier tidak pernah di-pause otomatis karena tidak aktif.
 - **Layar Membangunkan Database**: Jika database sedang resume setelah idle, antarmuka menampilkan pesan ramah *"Membangunkan database..."* disertai animasi countdown 5 detik dan sistem retry otomatis hingga 1 menit tanpa membuat pengguna panik atau melihat pesan error mentah.
 
-### 10. Dukungan PWA & Akses Offline (Service Worker)
-- **Aplikasi Native-like**: Pengguna dapat mengklik **"Install / Tambahkan ke Layar Utama"** di browser HP (Android & iOS).
-- **Layar Penuh (Standalone)**: Aplikasi terbuka tanpa bilah alamat (*URL bar*) browser, terasa seperti aplikasi native (APK), dan sepenuhnya mengeliminasi risiko salah pencet tombol navigasi browser.
-- **Ketahanan Offline Pasar**: Dilengkapi Service Worker (`public/sw.js`) dengan strategi caching *Network-First* dan *Stale-While-Revalidate* agar aplikasi tetap terbuka instan meski sinyal internet di pasar sedang terputus.
+### 10. Ketahanan Offline Berlapis & Anti Layar Blank (PWA Offline Resilience)
+- **Layer 1 (Fallback Mandiri di `index.html`)**: Jika aplikasi dibuka tanpa internet dan script JS belum ada di cache, sistem langsung menampilkan kartu darurat *"📶 Tidak Ada Koneksi Internet"* dengan tombol reload tanpa layar blank krem polos.
+- **Layer 2 (`OfflineScreen.jsx`)**: Jika PWA terbuka namun gagal terhubung ke server Supabase, aplikasi menampilkan layar informasi offline yang ramah dan tidak terjebak dalam countdown bangun database.
+- **Layer 3 (Indikator Live di Antarmuka)**: Jika sinyal putus saat sedang membuka aplikasi, daftar belanja tetap bisa dibaca, TopBar menampilkan status `[●] Offline`, dan banner peringatan muncul untuk mencegah kesalahan perubahan data.
+- **PWA Layar Penuh (Standalone)**: Aplikasi dapat di-install ke layar utama HP (Android & iOS) dan terbuka tanpa bilah alamat (*URL bar*), terasa seperti aplikasi native (APK).
 
-### 11. Import Data Massal (CSV)
+### 11. Cadangan Data Barang Mandiri (Export CSV / Excel)
+- **Backup Satu Klik**: Pengguna dapat mengunduh seluruh data barang (nama, harga, kategori, satuan grosir/eceran, toko langganan) langsung ke memori HP melalui menu Pengaturan.
+- **Format Universal UTF-8 BOM**: File CSV diformat dengan standar UTF-8 BOM sehingga langsung terbaca rapi tanpa karakter rusak saat dibuka di Microsoft Excel, Google Sheets, atau WPS Office.
+
+### 12. Tombol Hapus Pencarian Cepat (`[ × ]`)
+- Pada kolom pencarian barang di daftar belanja, tersedia tombol bulat `[ × ]` di sisi kanan input untuk mengosongkan teks pencarian panjang hanya dengan satu ketukan jari tanpa repot menekan backspace berkali-kali.
+
+### 13. Pengeditan Ejaan & Proteksi Hapus Kategori / Satuan
+- **Tombol [Edit]**: Memperbaiki typo atau ejaan kategori dan satuan tanpa harus menghapus data (perubahan otomatis merambat ke semua barang yang terhubung).
+- **In-App Warning Modal**: Jika kategori atau satuan masih digunakan oleh barang aktif, tombol hapus memunculkan modal peringatan yang mencantumkan contoh barang yang masih memakai satuan tersebut, sehingga relasi data tetap utuh.
+
+### 14. Import Data Massal (CSV)
 - Tersedia script Node.js untuk memasukkan ratusan data barang sekaligus dari file CSV secara otomatis dan tervalidasi.
 
 ---
@@ -260,6 +272,7 @@ src/
 ├── components/
 │   ├── modals/
 │   │   ├── BluetoothGuideModal.jsx   # Panduan aktivasi Web Bluetooth di Linux
+│   │   ├── ConfirmDeleteModal.jsx    # Modal konfirmasi hapus data & peringatan in-use
 │   │   ├── ConfirmExitModal.jsx      # Modal konfirmasi back button guard
 │   │   ├── ItemModal.jsx             # Form tambah & edit barang (toko, satuan belanja, rincian isi, & satuan eceran)
 │   │   ├── PrintFallbackModal.jsx    # Opsi cetak browser jika Bluetooth tidak aktif
@@ -268,7 +281,8 @@ src/
 │   ├── HistoryView.jsx         # Arsip riwayat pembelian dengan kolom toko & filter waktu
 │   ├── ItemList.jsx            # Daftar barang, paginasi, badge toko, & sakelar cetak toko
 │   ├── Notice.jsx              # Layar info, loading, & auto-resume database bangun
-│   ├── SettingsView.jsx        # Pengaturan kategori, satuan belanja, satuan eceran, & kata sandi akun
+│   ├── OfflineScreen.jsx       # Layar ramah penanganan mode offline / tanpa internet
+│   ├── SettingsView.jsx        # Pengaturan kategori, satuan, kata sandi, backup CSV & riwayat
 │   └── TopBar.jsx              # Header aplikasi, status realtime cloud, & tombol logout
 ├── utils/
 │   └── bluetoothPrinter.js     # Driver printer thermal ESC/POS 32-kolom & Web Bluetooth GATT

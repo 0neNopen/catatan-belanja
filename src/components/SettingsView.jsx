@@ -6,7 +6,8 @@ export default function SettingsView({
   categories,
   units,
   pieceUnits = [],
-  items,
+  items = [],
+  historyCount = 0,
   onOpenAddCategory,
   onOpenAddUnit,
   onOpenAddPieceUnit,
@@ -16,6 +17,8 @@ export default function SettingsView({
   onDeleteCategory,
   onDeleteUnit,
   onDeletePieceUnit,
+  onCleanupHistory,
+  onToast,
 }) {
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -132,6 +135,26 @@ export default function SettingsView({
           onDelete={handleDeletePieceUnitClick}
         />
       </div>
+
+      <div className="section-title" style={{ marginTop: '36px' }}>
+        <div>
+          <p className="eyebrow">PEMELIHARAAN & CADANGAN</p>
+          <h2>Data & Keamanan Database</h2>
+        </div>
+      </div>
+      <div className="setting-grid">
+        <DataBackupBlock
+          items={items}
+          categories={categories}
+          units={units}
+          onToast={onToast}
+        />
+        <HistoryCleanupBlock
+          historyCount={historyCount}
+          onCleanup={onCleanupHistory}
+        />
+      </div>
+
       <PasswordSettingBlock />
 
       <ConfirmDeleteModal
@@ -311,3 +334,160 @@ function PasswordSettingBlock() {
     </div>
   )
 }
+
+function DataBackupBlock({ items, categories, units, onToast }) {
+  const [downloading, setDownloading] = useState(false)
+
+  function handleExport() {
+    if (!items || items.length === 0) {
+      if (onToast) onToast('Belum ada data barang untuk dicadangkan.')
+      return
+    }
+
+    setDownloading(true)
+    try {
+      const categoryMap = {}
+      categories.forEach((c) => {
+        categoryMap[c.id] = c.name
+      })
+      const unitMap = {}
+      units.forEach((u) => {
+        unitMap[u.id] = u.name
+      })
+
+      const headers = [
+        'No',
+        'Nama Barang',
+        'Kategori',
+        'Satuan Grosir',
+        'Isi Per Paket',
+        'Satuan Eceran',
+        'Toko Langganan',
+        'Harga (Rp)',
+        'Status Checklist',
+      ]
+
+      const escapeCSV = (val) => {
+        if (val === null || val === undefined) return '""'
+        const str = String(val).replace(/"/g, '""')
+        return `"${str}"`
+      }
+
+      const rows = items.map((item, idx) => {
+        const catName = categoryMap[item.category_id] || item.categories?.name || 'Tanpa Kategori'
+        const unitName = unitMap[item.unit_id] || item.units?.name || '-'
+        const pieces = item.pieces_per_unit || ''
+        const pieceUnit = item.piece_unit || ''
+        const store = item.store_name || ''
+        const price = Number(item.price) || 0
+        const isChecked = item.is_selected ? 'Ya' : 'Tidak'
+
+        return [
+          idx + 1,
+          escapeCSV(item.name),
+          escapeCSV(catName),
+          escapeCSV(unitName),
+          escapeCSV(pieces),
+          escapeCSV(pieceUnit),
+          escapeCSV(store),
+          price,
+          escapeCSV(isChecked),
+        ].join(',')
+      })
+
+      // UTF-8 BOM (\uFEFF) untuk kompatibilitas penuh dengan Microsoft Excel & Google Sheets
+      const csvContent = '\uFEFF' + headers.map(escapeCSV).join(',') + '\n' + rows.join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      const now = new Date()
+      const dateStr = now.toISOString().slice(0, 10)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `catatan-belanja-cadangan-${dateStr}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      if (onToast) onToast(`File cadangan (${items.length} barang) berhasil diunduh!`)
+    } catch {
+      if (onToast) onToast('Gagal mengunduh file cadangan.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <div className="setting-block">
+      <div className="block-head">
+        <strong>Cadangan Data Barang</strong>
+        <span style={{ fontSize: '11px', color: 'var(--muted)', font: '11px "DM Mono"' }}>
+          CSV / Excel
+        </span>
+      </div>
+      <p style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: '1.5', margin: '8px 0 16px' }}>
+        Unduh salinan seluruh daftar barang ke HP Anda. File dapat dibuka langsung di Microsoft Excel, Google Sheets, atau aplikasi spreadsheet lainnya.
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', color: 'var(--ink)' }}>
+          Total: <strong>{items.length}</strong> barang terdaftar
+        </span>
+        <button
+          type="button"
+          className="btn-action btn-primary-sm"
+          onClick={handleExport}
+          disabled={downloading || items.length === 0}
+          style={{ padding: '8px 16px', fontSize: '13px' }}
+        >
+          {downloading ? 'Mengunduh...' : '📥 Unduh Cadangan CSV'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function HistoryCleanupBlock({ historyCount = 0, onCleanup }) {
+  const [cleaning, setCleaning] = useState(false)
+
+  async function handleTriggerCleanup() {
+    if (!onCleanup) return
+    setCleaning(true)
+    try {
+      await onCleanup()
+    } finally {
+      setCleaning(false)
+    }
+  }
+
+  return (
+    <div className="setting-block">
+      <div className="block-head">
+        <strong>Pembersih Riwayat Otomatis</strong>
+        <span style={{ fontSize: '11px', color: 'var(--green)', font: '11px "DM Mono"', fontWeight: 700 }}>
+          Maks. 25 Transaksi
+        </span>
+      </div>
+      <p style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: '1.5', margin: '8px 0 16px' }}>
+        Sistem otomatis membatasi riwayat belanja maksimal 25 transaksi terbaru. Setiap transaksi baru setelah 25 transaksi otomatis menggantikan riwayat terlama agar database tetap ringan dan cepat selamanya.
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="sync-dot" style={{ background: '#82b52f' }} />
+          <span style={{ fontSize: '12px', color: 'var(--ink)' }}>
+            Tersimpan: <strong>{historyCount}</strong> / 25 riwayat
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn-action btn-edit-sm"
+          onClick={handleTriggerCleanup}
+          disabled={cleaning}
+          style={{ padding: '8px 14px', fontSize: '12px' }}
+        >
+          {cleaning ? 'Memeriksa...' : '🧹 Optimalkan Riwayat'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
