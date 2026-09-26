@@ -25,9 +25,9 @@
 4. Isi:
 
 ```env
-SUPABASE_URL=https://glfmzbkbkxwlspcyzass.supabase.co
+SUPABASE_URL=https://project-anda.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=service_role_key_anda
-USER_EMAIL=warung.yayuk1971@gmail.com
+USER_EMAIL=emailmu@gmail.com
 ```
 
 Service role key memberi akses penuh dan hanya boleh disimpan di komputer pribadi. Jangan kirim, commit, atau masukkan ke Google Sheets. File ini sudah masuk `.gitignore`.
