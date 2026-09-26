@@ -466,6 +466,36 @@ main {
   width: 100%;
   font: 13px 'Plus Jakarta Sans';
   color: var(--ink);
+  min-width: 0;
+}
+
+.search-clear-btn {
+  background: #e2e8de;
+  color: #55665d;
+  border: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.16s ease;
+  user-select: none;
+}
+
+.search-clear-btn:hover {
+  background: #d0dcce;
+  color: var(--ink);
+}
+
+.search-clear-btn:active {
+  transform: scale(0.92);
 }
 
 button {

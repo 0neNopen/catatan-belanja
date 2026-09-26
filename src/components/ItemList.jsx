@@ -39,14 +39,26 @@ export default function ItemList({
       </div>
 
       <section className="toolbar">
-        <label className="search">
-          <span>⌕</span>
+        <div className="search">
+          <span aria-hidden="true">⌕</span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cari barang atau nama toko..."
+            aria-label="Cari barang atau nama toko"
           />
-        </label>
+          {query && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              onClick={() => setQuery('')}
+              aria-label="Hapus pencarian"
+              title="Hapus pencarian"
+            >
+              ×
+            </button>
+          )}
+        </div>
         <button
           className="primary"
           disabled={!hasCategoriesAndUnits}
