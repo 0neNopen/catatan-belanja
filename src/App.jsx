@@ -778,10 +778,12 @@ export default function App() {
 
         <nav className="tabs" aria-label="Navigasi utama">
           <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>
-            Daftar barang <span>{data.items.length}</span>
+            <span className="tab-text-full">Daftar barang</span>
+            <span className="tab-text-short">Daftar</span>
+            <span className="tab-badge">{data.items.length}</span>
           </button>
           <button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>
-            Riwayat <span>{data.history.length}</span>
+            Riwayat <span className="tab-badge">{data.history.length}</span>
           </button>
           <button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}>
             Pengaturan

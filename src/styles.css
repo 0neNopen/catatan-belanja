@@ -348,12 +348,21 @@ main {
   border-color: var(--ink);
 }
 
-.tabs span {
+.tab-text-short {
+  display: none;
+}
+
+.tab-text-full {
+  display: inline;
+}
+
+.tabs .tab-badge {
   font: 14px 'DM Mono';
   background: #e2e9df;
   padding: 3px 6px;
   border-radius: 5px;
   margin-left: 5px;
+  display: inline-block;
 }
 
 .toolbar {
@@ -1134,6 +1143,8 @@ button {
   place-items: center;
   padding: 20px;
   z-index: 10;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .modal {
@@ -1141,7 +1152,11 @@ button {
   border-radius: 12px;
   padding: 25px;
   width: min(100%, 420px);
+  max-width: 440px;
+  max-height: min(90vh, 90dvh);
+  overflow-y: auto;
   box-shadow: 0 18px 70px #17332c33;
+  box-sizing: border-box;
 }
 
 .modal-head {
@@ -1182,12 +1197,16 @@ button {
   font: 13px 'Plus Jakarta Sans';
   color: var(--ink);
   outline-color: var(--green);
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .modal-grid-2 {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: 10px;
+  min-width: 0;
 }
 
 .unit-calc-hint {
@@ -1264,32 +1283,50 @@ button {
     display: none;
   }
   main {
-    padding: 44px 18px 70px;
+    padding: 32px 16px 60px;
   }
   .intro {
-    margin-bottom: 42px;
+    margin-bottom: 24px;
     align-items: start;
   }
   .date-stamp {
-    padding-left: 16px;
+    padding-left: 14px;
   }
   .date-stamp strong {
-    font-size: 42px;
+    font-size: 30px;
   }
   .intro h1 {
-    font-size: 48px;
+    font-size: 30px;
   }
   .lede {
     font-size: 12px;
-    max-width: 210px;
+    max-width: 220px;
+  }
+  .tab-text-full {
+    display: none;
+  }
+  .tab-text-short {
+    display: inline;
   }
   .tabs {
-    gap: 18px;
-    overflow: auto;
+    display: flex;
+    width: 100%;
+    gap: 0;
+    overflow: visible;
   }
   .tabs button {
-    font-size: 15px;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    justify-content: center;
+    font-size: 14px;
+    padding: 8px 2px 12px;
     white-space: nowrap;
+  }
+  .tabs .tab-badge {
+    font-size: 12px;
+    padding: 2px 5px;
+    margin-left: 3px;
   }
   .toolbar {
     flex-direction: column;
@@ -1377,6 +1414,22 @@ button {
   }
   .section-title h2 {
     font-size: 27px;
+  }
+  .modal-backdrop {
+    padding: 12px 10px;
+  }
+  .modal {
+    padding: 20px 16px;
+    border-radius: 12px;
+    max-height: 90dvh;
+    width: 100%;
+  }
+  .modal-head {
+    margin-bottom: 16px;
+  }
+  .modal-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 11px;
   }
 }
 
